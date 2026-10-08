@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scoreboard stopwatch: square amber frame, crown and a seven-segment style hand. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFF8A00"
+        android:strokeWidth="6"
+        android:pathData="M34,38 L74,38 L74,78 L34,78 Z" />
+    <path
+        android:fillColor="#FFFF8A00"
+        android:pathData="M47,26 L61,26 L61,31 L47,31 Z M51,31 L57,31 L57,38 L51,38 Z" />
+    <path
+        android:fillColor="#FFEFEBE3"
+        android:pathData="M51,46 L57,46 L57,61 L51,61 Z M51,61 L66,61 L66,67 L51,67 Z" />
+</vector>

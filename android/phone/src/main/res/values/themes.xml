@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="wtt_black">#FF0A0A0A</color>
+    <color name="wtt_amber">#FFFF8A00</color>
+    <color name="wtt_offwhite">#FFEFEBE3</color>
+
+    <style name="Theme.Wtt" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/wtt_black</item>
+        <item name="android:statusBarColor">@color/wtt_black</item>
+        <item name="android:navigationBarColor">@color/wtt_black</item>
+        <item name="android:colorAccent">@color/wtt_amber</item>
+    </style>
+</resources>

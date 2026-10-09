@@ -91,6 +91,8 @@ data class DisplaySettings(
     /** Show the 'Assign #' chip after a score to attribute points to a player. */
     val promptScorer: Boolean = true,
     val confirmFoulType: Boolean = false,
+    /** Stopped game clock: red digits that also pulse slowly (red only when off). */
+    val blinkWhenStopped: Boolean = true,
 )
 
 @Serializable

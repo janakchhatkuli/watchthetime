@@ -81,6 +81,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             SectionLabel("Display")
             ToggleRow("Tenths of a second in the last minute", st.display.showTenthsInLastMinute,
                 { v -> update { it.copy(display = it.display.copy(showTenthsInLastMinute = v)) } })
+            ToggleRow("Blink the clock when stopped", st.display.blinkWhenStopped,
+                { v -> update { it.copy(display = it.display.copy(blinkWhenStopped = v)) } },
+                "A stopped clock is always red; this also makes it pulse slowly")
             ToggleRow("Offer “Assign #” after a score", st.display.promptScorer,
                 { v -> update { it.copy(display = it.display.copy(promptScorer = v)) } }, "Attribute team points to a player afterwards")
             ToggleRow("Confirm fouls with a button", st.display.confirmFoulType,

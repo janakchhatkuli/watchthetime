@@ -81,7 +81,9 @@ class GameController(
     private val writes = Channel<suspend () -> Unit>(Channel.UNLIMITED)
 
     init {
-        scope.launch(Dispatchers.IO) { for (w in writes) runCatching { w() } }
+        scope.launch(Dispatchers.IO) {
+            for (w in writes) runCatching { w() }.onFailure { android.util.Log.e("WttGame", "Saving game failed", it) }
+        }
     }
 
     val openGameId: String? get() = session?.gameId

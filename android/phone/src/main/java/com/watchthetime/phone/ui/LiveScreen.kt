@@ -1,5 +1,14 @@
 package com.watchthetime.phone.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,10 +25,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,7 +44,9 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -43,11 +54,15 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.watchthetime.brand.ButtonKind
 import com.watchthetime.brand.HRule
+import com.watchthetime.brand.SectionLabel
 import com.watchthetime.brand.SegmentText
 import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
@@ -66,6 +81,7 @@ import com.watchthetime.domain.state.PeriodAction
 import com.watchthetime.phone.Banner
 import com.watchthetime.phone.Exporter
 import com.watchthetime.phone.LiveGame
+import com.watchthetime.phone.PendingAssign
 import com.watchthetime.phone.container
 import kotlinx.coroutines.delay
 
@@ -75,9 +91,12 @@ sealed interface LiveDialog {
     data class ScoreFor(val side: TeamSide, val points: Int) : LiveDialog
     data class Assign(val eventId: String, val side: TeamSide, val points: Int) : LiveDialog
     data class Player(val playerId: String) : LiveDialog
+    data class Team(val side: TeamSide) : LiveDialog
     data object Clock : LiveDialog
     data object Shot : LiveDialog
     data object Menu : LiveDialog
+    data object ClockMode : LiveDialog
+    data object Period : LiveDialog
 }
 
 /** Recomposes every frame while [active], so the clock is rendered from the drift-free model. */
@@ -95,6 +114,10 @@ fun rememberNow(active: Boolean, key: Any?): Stamp {
     return now
 }
 
+/**
+ * The in-game scoreboard. Landscape only: the clock is the hero element; tap it to start or
+ * stop, long-press it to edit the time. There is no start/stop button.
+ */
 @Composable
 fun LiveScreen(
     gameId: String,
@@ -112,48 +135,71 @@ fun LiveScreen(
     val assign by c.controller.pendingAssign.collectAsState()
     var dialog by remember { mutableStateOf<LiveDialog?>(null) }
     var confirm by remember { mutableStateOf<Pair<Command, String>?>(null) }
+    var overlayHidden by remember { mutableStateOf(false) }
+
+    // Landscape + immersive for the whole time this screen is open; screen stays awake for
+    // the whole game (not only while the clock runs).
+    LandscapeGameWindow(keepAwake = live?.state?.finalized != true)
 
     if (live == null) {
-        WttScreen("Loading", onBack) {}
+        Box(Modifier.fillMaxSize().background(Wtt.Black), contentAlignment = Alignment.Center) {
+            Text("LOADING", style = MaterialTheme.typography.titleLarge, color = Wtt.Muted)
+        }
         return
     }
     val s = live.state
     val active = s.clock.running || s.timeout != null
     val now = rememberNow(active, live.version)
 
-    // Keep the display on while the clock or a timeout runs.
-    val view = LocalView.current
-    DisposableEffect(active) {
-        view.keepScreenOn = active
-        onDispose { view.keepScreenOn = false }
-    }
-
     val send: (Command) -> Unit = { cmd ->
         if (settings.gestures.safeMode && cmd.isDestructive) confirm = cmd to confirmText(cmd, live)
         else c.controller.dispatch(cmd)
     }
-
     val ui = LiveUi(live, now, settings.display.showTenthsInLastMinute, send, { dialog = it })
 
-    WttScreen(
-        title = if (s.finalized) "Final" else ClockFormat.periodLong(s.period, s.rules),
-        subtitle = s.title.ifBlank { "${s.team(TeamSide.HOME).info.name} vs ${s.team(TeamSide.AWAY).info.name}" },
-        onBack = onBack,
-        actions = {
-            WttIconButton(WttIcons.Undo, "Undo ${live.undoLabel ?: ""}", { send(Command.Undo) }, enabled = live.canUndo)
-            WttIconButton(WttIcons.Redo, "Redo ${live.redoLabel ?: ""}", { send(Command.Redo) }, enabled = live.canRedo)
-            WttIconButton(WttIcons.Log, "Event log", onLog)
-            WttIconButton(WttIcons.Menu, "More", { dialog = LiveDialog.Menu })
-        },
-    ) {
-        BannerStrip(banner)
-        assign?.let { a ->
-            AssignChip(a.score.points, s.team(a.score.side).info.shortName,
-                onAssign = { dialog = LiveDialog.Assign(a.eventId, a.score.side, a.score.points) },
-                onDismiss = { c.controller.dismissAssign() }, key = a.id)
+    // End of a period that needs a decision (overtime or final): prompt once per transition.
+    val action = s.nextPeriodAction()
+    LaunchedEffect(s.status, s.period) {
+        if (s.status == GameStatus.PERIOD_BREAK && action !is PeriodAction.Next) dialog = LiveDialog.Period
+    }
+    LaunchedEffect(s.finalized) { if (s.finalized) overlayHidden = false }
+
+    val onClockTap: () -> Unit = {
+        when {
+            s.finalized -> overlayHidden = false
+            s.status == GameStatus.PERIOD_BREAK -> dialog = LiveDialog.Period
+            else -> c.controller.dispatch(Command.ToggleClock)
         }
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-            if (maxWidth > maxHeight) LandscapeLayout(ui, onBox) else PortraitLayout(ui, onBox, maxWidth)
+    }
+
+    BoxWithConstraints(Modifier.fillMaxSize().background(Wtt.Black).safeDrawingPadding()) {
+        val scoreButtons = 3
+        val spec = remember(maxWidth, maxHeight, scoreButtons) {
+            LiveLayoutSpec.compute(maxWidth.value, maxHeight.value, scoreButtons)
+        }
+        if (maxWidth < maxHeight) {
+            // Only while the device is still rotating (or in a portrait split-screen window).
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("ROTATE TO LANDSCAPE", style = MaterialTheme.typography.headlineSmall, color = Wtt.Amber)
+            }
+            return@BoxWithConstraints
+        }
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth().weight(1f)) {
+                SidePanel(ui, TeamSide.HOME, spec, Modifier.width(spec.sideWidth.dp).fillMaxHeight())
+                CenterPanel(
+                    ui, spec, banner, assign, settings.display.blinkWhenStopped, onClockTap,
+                    onAssign = { a -> dialog = LiveDialog.Assign(a.eventId, a.score.side, a.score.points) },
+                    onDismissAssign = { c.controller.dismissAssign() },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
+                SidePanel(ui, TeamSide.AWAY, spec, Modifier.width(spec.sideWidth.dp).fillMaxHeight())
+            }
+            ActionStrip(ui, spec, scoreButtons)
+        }
+        if (s.finalized && !overlayHidden) {
+            GameOverOverlay(s, onBox = onBox, onLog = onLog, onBack = onBack,
+                onReopen = { send(Command.ReopenGame) }, onHide = { overlayHidden = true })
         }
     }
 
@@ -170,17 +216,23 @@ fun LiveScreen(
             c.controller.dispatch(Command.AssignPlayer(d.eventId, pid)); dialog = null
         }
         is LiveDialog.Player -> PlayerDialog(s, d.playerId, send, onDismiss = { dialog = null })
+        is LiveDialog.Team -> TeamDialog(ui, d.side, onDismiss = { dialog = null })
         LiveDialog.Clock -> ClockDialog(s, now, send, onDismiss = { dialog = null })
         LiveDialog.Shot -> ShotDialog(s, now, send, onDismiss = { dialog = null })
+        LiveDialog.ClockMode -> ClockModeDialog(s, send, onDismiss = { dialog = null })
+        LiveDialog.Period -> PeriodDialog(s, send, onDismiss = { dialog = null })
         LiveDialog.Menu -> MenuDialog(
             onDismiss = { dialog = null },
             items = listOf(
+                "Clock mode · ${s.clockPolicy.summary}" to { dialog = LiveDialog.ClockMode },
+                "Edit game clock & period" to { dialog = LiveDialog.Clock },
                 "Event log" to onLog,
                 "Box score" to onBox,
-                "Teams, rosters & rules" to onSetup,
+                "Teams, rosters, rules & clock" to onSetup,
                 "Export CSV" to { Exporter.shareCsv(ctx, live.events, s) },
                 "Export PDF" to { Exporter.sharePdf(ctx, live.events, s) },
                 "Settings" to onSettings,
+                "Leave game screen" to onBack,
             ),
         )
     }
@@ -213,73 +265,187 @@ class LiveUi(
 }
 
 // =========================================================================================
-// Layouts
+// Window: orientation lock, immersive mode, keep awake
+// =========================================================================================
+
+private fun Context.findActivity(): Activity? {
+    var c: Context? = this
+    while (c is ContextWrapper) {
+        if (c is Activity) return c
+        c = c.baseContext
+    }
+    return null
+}
+
+@Composable
+private fun LandscapeGameWindow(keepAwake: Boolean) {
+    val view = LocalView.current
+    val activity = LocalContext.current.findActivity()
+    DisposableEffect(activity) {
+        val previous = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        val bars = activity?.window?.let { WindowCompat.getInsetsController(it, view) }
+        bars?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        bars?.hide(WindowInsetsCompat.Type.systemBars())
+        onDispose {
+            bars?.show(WindowInsetsCompat.Type.systemBars())
+            activity?.requestedOrientation = previous
+        }
+    }
+    DisposableEffect(keepAwake) {
+        view.keepScreenOn = keepAwake
+        onDispose { view.keepScreenOn = false }
+    }
+}
+
+@Composable
+private fun dpAsSp(dp: Float): TextUnit = with(LocalDensity.current) { dp.dp.toSp() }
+
+// =========================================================================================
+// Side panels: team label, score, fouls/bonus, timeouts
 // =========================================================================================
 
 @Composable
-private fun PortraitLayout(ui: LiveUi, onBox: () -> Unit, width: Dp) {
+private fun SidePanel(ui: LiveUi, side: TeamSide, spec: LiveLayoutSpec, modifier: Modifier) {
     val s = ui.s
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().height(IntrinsicHeightFix)) {
-            ScoreCard(ui, TeamSide.HOME, Modifier.weight(1f))
-            Box(Modifier.width(1.dp).fillMaxHeight().background(Wtt.Line))
-            ScoreCard(ui, TeamSide.AWAY, Modifier.weight(1f))
+    val t = s.team(side)
+    val fouls = s.teamFouls(side)
+    val bonus = s.inBonus(side)
+    val tos = s.timeoutsRemaining(side)
+    val home = side == TeamSide.HOME
+    Column(modifier.padding(horizontal = LiveLayoutSpec.SIDE_PAD.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        // Top row: quarter indicator in the home corner, menu in the away corner.
+        Row(Modifier.fillMaxWidth().height(LiveLayoutSpec.TOP_ROW.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (home) {
+                Pill(if (s.finalized) "FINAL" else ClockFormat.periodShort(s.period, s.rules), Wtt.PanelHigh, Wtt.OffWhite)
+                Spacer(Modifier.width(8.dp))
+                TeamTag(t.info.shortName, t.info.colorArgb, Modifier.weight(1f))
+            } else {
+                TeamTag(t.info.shortName, t.info.colorArgb, Modifier.weight(1f))
+                WttIconButton(WttIcons.Menu, "Game menu", { ui.open(LiveDialog.Menu) })
+            }
         }
-        HRule()
-        ClockBlock(ui, clockSize = (width.value / 4.6f).coerceIn(48f, 110f).sp)
-        TimeoutPanel(ui)
-        MainButton(ui, onBox, Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TeamControls(ui, TeamSide.HOME, Modifier.weight(1f))
-            TeamControls(ui, TeamSide.AWAY, Modifier.weight(1f))
+        Box(Modifier.fillMaxWidth().height((spec.scoreFontDp * LiveLayoutSpec.LINE).dp), contentAlignment = Alignment.Center) {
+            SegmentText(pad3(t.score), dpAsSp(spec.scoreFontDp), color = Wtt.Amber, spoken = "${t.info.name} ${t.score}")
         }
-        Spacer(Modifier.height(12.dp))
-        HRule()
-        Row(Modifier.fillMaxWidth()) {
-            PlayerList(ui, TeamSide.HOME, Modifier.weight(1f))
-            Box(Modifier.width(1.dp).height(1.dp))
-            PlayerList(ui, TeamSide.AWAY, Modifier.weight(1f))
+        Row(
+            Modifier.fillMaxWidth().height(LiveLayoutSpec.STATS_ROW.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+        ) {
+            Text("FOULS ", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted)
+            SegmentText(fouls.toString().padStart(2, '!'), 18.sp,
+                color = if (s.penalty(side) != PenaltyLevel.NONE) Wtt.Red else Wtt.OffWhite, spoken = "$fouls team fouls")
+            Spacer(Modifier.width(8.dp))
+            when (bonus) {
+                PenaltyLevel.BONUS -> Pill("Bonus", Wtt.Amber, Wtt.Black)
+                PenaltyLevel.DOUBLE_BONUS -> Pill("2× Bonus", Wtt.Red, Wtt.OffWhite)
+                PenaltyLevel.NONE -> Unit
+            }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.weight(1f))
+        WttButton(
+            "T/O · $tos left", { ui.send(Command.StartTimeout(side)) }, Modifier.fillMaxWidth(),
+            enabled = !s.finalized && s.timeout == null && tos > 0, minHeight = LiveLayoutSpec.MIN_TOUCH.dp,
+        )
+        Spacer(Modifier.height(4.dp))
     }
 }
 
-private val IntrinsicHeightFix = 168.dp
+// =========================================================================================
+// Center: banner, clock (tap / long-press), status, shot clock or timeout
+// =========================================================================================
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun LandscapeLayout(ui: LiveUi, onBox: () -> Unit) {
-    Row(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
-            ScoreCard(ui, TeamSide.HOME, Modifier.fillMaxWidth().height(IntrinsicHeightFix))
-            TeamControls(ui, TeamSide.HOME, Modifier.padding(8.dp))
+private fun CenterPanel(
+    ui: LiveUi,
+    spec: LiveLayoutSpec,
+    banner: Banner?,
+    assign: PendingAssign?,
+    blink: Boolean,
+    onClockTap: () -> Unit,
+    onAssign: (PendingAssign) -> Unit,
+    onDismissAssign: () -> Unit,
+    modifier: Modifier,
+) {
+    val s = ui.s
+    val rem = s.clock.at(ui.now)
+    val running = s.clock.running
+    val stopped = !running && !s.finalized
+    val color = when {
+        s.finalized -> Wtt.OffWhite
+        running -> Wtt.Amber
+        else -> Wtt.Red
+    }
+    val pulse = rememberInfiniteTransition(label = "stopped")
+    val alpha by pulse.animateFloat(
+        initialValue = 1f, targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "alpha",
+    )
+
+    Column(modifier.padding(horizontal = LiveLayoutSpec.CENTER_PAD.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.fillMaxWidth().height(LiveLayoutSpec.BANNER.dp), contentAlignment = Alignment.Center) {
+            if (assign != null) AssignChip(assign, ui.s, onAssign, onDismissAssign)
+            else BannerText(banner)
         }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Wtt.Line))
-        Column(Modifier.weight(1.4f).fillMaxHeight().verticalScroll(rememberScrollState())) {
-            ClockBlock(ui, clockSize = 84.sp)
-            TimeoutPanel(ui)
-            MainButton(ui, onBox, Modifier.fillMaxWidth().padding(8.dp))
+        Box(
+            Modifier.fillMaxWidth().weight(1f)
+                .combinedClickable(
+                    role = Role.Button,
+                    onClickLabel = if (running) "Stop clock" else "Start clock",
+                    onLongClickLabel = "Edit time",
+                    onClick = onClockTap,
+                    onLongClick = { ui.open(LiveDialog.Clock) },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            SegmentText(
+                ClockFormat.game(rem, ui.tenths, s.rules.lastMinuteWarningMs), dpAsSp(spec.clockFontDp), color = color,
+                modifier = Modifier.graphicsLayer { this.alpha = if (stopped && blink) alpha else 1f },
+                spoken = "Game clock ${ClockFormat.plain(rem, true)}, ${if (running) "running" else "stopped"}",
+            )
         }
-        Box(Modifier.width(1.dp).fillMaxHeight().background(Wtt.Line))
-        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
-            ScoreCard(ui, TeamSide.AWAY, Modifier.fillMaxWidth().height(IntrinsicHeightFix))
-            TeamControls(ui, TeamSide.AWAY, Modifier.padding(8.dp))
+        Text(
+            statusText(s), style = MaterialTheme.typography.labelMedium, color = if (running) Wtt.Amber else if (s.finalized) Wtt.Muted else Wtt.Red,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().height(LiveLayoutSpec.STATUS.dp),
+        )
+        Box(Modifier.fillMaxWidth().height(LiveLayoutSpec.SHOT_ROW.dp), contentAlignment = Alignment.Center) {
+            val t = s.timeout
+            when {
+                t != null -> TimeoutBar(ui, t.side, t.countdown.at(ui.now))
+                s.rules.shotClockEnabled -> ShotRow(ui, spec)
+            }
         }
+        Spacer(Modifier.height(4.dp))
     }
 }
 
-// =========================================================================================
-// Pieces
-// =========================================================================================
+private fun statusText(s: GameState): String {
+    val mode = s.clockPolicy.mode.label.uppercase()
+    return when {
+        s.finalized -> "FINAL · TAP CLOCK FOR SUMMARY"
+        s.timeout != null -> "TIMEOUT · TAP CLOCK TO END IT AND START"
+        s.status == GameStatus.PERIOD_BREAK -> when (val a = s.nextPeriodAction()) {
+            is PeriodAction.Next -> "END ${ClockFormat.periodShort(s.period, s.rules)} · TAP CLOCK FOR ${ClockFormat.periodShort(a.period, s.rules)}"
+            is PeriodAction.Overtime -> "TIED · TAP CLOCK FOR OVERTIME"
+            PeriodAction.Final -> "GAME OVER · TAP CLOCK TO CONFIRM FINAL"
+        }
+        s.clock.running -> "RUNNING · $mode · TAP TO STOP"
+        else -> "STOPPED · TAP TO START · HOLD TO EDIT"
+    }
+}
 
 private fun bannerColor(t: CueType): Pair<Color, Color> = when (t) {
     CueType.PERIOD_END, CueType.GAME_FINAL, CueType.SHOT_CLOCK_EXPIRED, CueType.FOUL_OUT, CueType.ERROR -> Wtt.Red to Wtt.OffWhite
-    CueType.BONUS, CueType.FOUL_WARNING, CueType.LAST_MINUTE, CueType.TIMEOUT_START, CueType.TIMEOUT_END, CueType.FOUL_FLAG -> Wtt.Amber to Wtt.Black
+    CueType.BONUS, CueType.FOUL_WARNING, CueType.LAST_MINUTE, CueType.TIMEOUT_START, CueType.TIMEOUT_END,
+    CueType.TIMEOUT_WARNING, CueType.INTERVAL_END, CueType.FOUL_FLAG, CueType.MODE_CHANGED -> Wtt.Amber to Wtt.Black
     else -> Wtt.PanelHigh to Wtt.OffWhite
 }
 
-/** Visual twin of every sound/vibration. Fixed height so the layout never jumps. */
+/** Visual twin of every sound/vibration. Fixed slot, so the layout never jumps. */
 @Composable
-private fun BannerStrip(banner: Banner?) {
+private fun BannerText(banner: Banner?) {
     var visible by remember { mutableStateOf<Banner?>(null) }
     LaunchedEffect(banner?.id) {
         visible = banner
@@ -289,203 +455,206 @@ private fun BannerStrip(banner: Banner?) {
         }
     }
     val b = visible
-    val (bg, fg) = b?.let { bannerColor(it.cue.type) } ?: (Wtt.Black to Wtt.Muted)
+    val (bg, fg) = b?.let { bannerColor(it.cue.type) } ?: (Color.Transparent to Wtt.Muted)
     Box(
-        Modifier.fillMaxWidth().height(36.dp).background(bg).semantics { liveRegion = LiveRegionMode.Polite },
+        Modifier.fillMaxWidth().height(40.dp).background(bg).semantics { liveRegion = LiveRegionMode.Polite },
         contentAlignment = Alignment.Center,
     ) {
-        if (b != null) Text(b.cue.text.uppercase(), style = MaterialTheme.typography.titleMedium, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (b != null) Text(b.cue.text.uppercase(), style = MaterialTheme.typography.titleMedium, color = fg,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 8.dp))
     }
-    HRule()
 }
 
 @Composable
-private fun AssignChip(points: Int, team: String, onAssign: () -> Unit, onDismiss: () -> Unit, key: Long) {
-    LaunchedEffect(key) { delay(8000); onDismiss() }
-    Row(Modifier.fillMaxWidth().background(Wtt.Panel).padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("+$points $team", style = MaterialTheme.typography.titleMedium, color = Wtt.OffWhite, modifier = Modifier.weight(1f))
-        WttButton("Assign #", onAssign, kind = ButtonKind.PRIMARY, minHeight = 40.dp)
+private fun AssignChip(a: PendingAssign, s: GameState, onAssign: (PendingAssign) -> Unit, onDismiss: () -> Unit) {
+    LaunchedEffect(a.id) { delay(8000); onDismiss() }
+    Row(Modifier.fillMaxWidth().background(Wtt.Panel).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("+${a.score.points} ${s.team(a.score.side).info.shortName}", style = MaterialTheme.typography.titleMedium,
+            color = Wtt.OffWhite, modifier = Modifier.weight(1f), maxLines = 1)
+        WttButton("Assign #", { onAssign(a) }, kind = ButtonKind.PRIMARY, minHeight = 48.dp)
         WttIconButton(WttIcons.Close, "Dismiss", onDismiss, tint = Wtt.Muted)
     }
-    HRule()
 }
 
 @Composable
-private fun ScoreCard(ui: LiveUi, side: TeamSide, modifier: Modifier) {
+private fun ShotRow(ui: LiveUi, spec: LiveLayoutSpec) {
     val s = ui.s
-    val t = s.team(side)
-    val onTeam = Wtt.onTeam(t.info.colorArgb)
-    val bonus = s.inBonus(side)
-    val fouls = s.teamFouls(side)
-    val tos = s.timeoutsRemaining(side)
-    Column(modifier.background(Wtt.Black)) {
-        Row(
-            Modifier.fillMaxWidth().background(Wtt.argb(t.info.colorArgb)).padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(t.info.shortName, style = MaterialTheme.typography.titleLarge, color = onTeam, modifier = Modifier.weight(1f), maxLines = 1)
-            Text(if (side == TeamSide.HOME) "HOME" else "AWAY", style = MaterialTheme.typography.labelSmall, color = onTeam)
-        }
-        Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-            SegmentText(pad3(t.score), 60.sp, color = Wtt.Amber, spoken = "${t.info.name} ${t.score}")
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("FOULS", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted)
-            Spacer(Modifier.width(4.dp))
-            SegmentText(fouls.toString().padStart(2, '!'), 18.sp, color = if (s.penalty(side) != PenaltyLevel.NONE) Wtt.Red else Wtt.OffWhite, spoken = "$fouls team fouls")
-            Spacer(Modifier.weight(1f))
-            Text("T/O", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted)
-            Spacer(Modifier.width(4.dp))
-            SegmentText(tos.toString(), 18.sp, color = Wtt.OffWhite, spoken = "$tos timeouts left")
-        }
-        Box(Modifier.fillMaxWidth().height(22.dp).padding(horizontal = 10.dp)) {
-            when (bonus) {
-                PenaltyLevel.BONUS -> Pill("Bonus", Wtt.Amber, Wtt.Black)
-                PenaltyLevel.DOUBLE_BONUS -> Pill("Double bonus", Wtt.Red, Wtt.OffWhite)
-                PenaltyLevel.NONE -> Unit
-            }
-        }
-    }
-}
-
-@Composable
-private fun ClockBlock(ui: LiveUi, clockSize: androidx.compose.ui.unit.TextUnit) {
-    val s = ui.s
-    val rem = s.clock.at(ui.now)
-    val color = when {
-        s.finalized -> Wtt.OffWhite
-        rem == 0L -> Wtt.Red
-        s.clock.running -> Wtt.Amber
-        else -> Wtt.OffWhite
-    }
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    val shot = s.shot.at(ui.now)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        WttButton("${s.rules.shotClockFullMs / 1000}", { ui.send(Command.ResetShotClock(false)) }, Modifier.widthIn(min = 56.dp),
+            minHeight = 48.dp, textStyle = MaterialTheme.typography.titleLarge, enabled = !s.finalized)
         Box(
-            Modifier.clickable(role = Role.Button, onClickLabel = "Adjust clock and period") { ui.open(LiveDialog.Clock) }
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+            Modifier.border(1.dp, Wtt.Line)
+                .clickable(role = Role.Button, onClickLabel = "Shot clock controls") { ui.open(LiveDialog.Shot) }
+                .padding(horizontal = 12.dp, vertical = 2.dp),
         ) {
-            SegmentText(
-                ClockFormat.game(rem, ui.tenths, s.rules.lastMinuteWarningMs), clockSize, color = color,
-                spoken = "Game clock ${ClockFormat.plain(rem, true)}",
-            )
+            SegmentText(ClockFormat.shot(shot), dpAsSp(spec.shotFontDp), color = if (s.shotHeld) Wtt.Muted else Wtt.Red,
+                spoken = "Shot clock ${ClockFormat.spoken(ClockFormat.shot(shot))}")
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill(ClockFormat.periodShort(s.period, s.rules), Wtt.PanelHigh, Wtt.OffWhite)
-            if (s.rules.shotClockEnabled) {
-                val shot = s.shot.at(ui.now)
-                Box(
-                    Modifier.border(1.dp, Wtt.Line).clickable(role = Role.Button, onClickLabel = "Adjust shot clock") { ui.open(LiveDialog.Shot) }
-                        .padding(horizontal = 10.dp, vertical = 2.dp),
-                ) {
-                    SegmentText(
-                        ClockFormat.shot(shot), 40.sp,
-                        color = if (s.shotHeld) Wtt.Muted else Wtt.Red,
-                        spoken = "Shot clock ${ClockFormat.spoken(ClockFormat.shot(shot))}",
-                    )
-                }
-                WttButton("${s.rules.shotClockFullMs / 1000}", { ui.send(Command.ResetShotClock(false)) }, minHeight = 52.dp,
-                    textStyle = MaterialTheme.typography.headlineSmall, icon = WttIcons.Reset, enabled = !s.finalized)
-                WttButton("${s.rules.shotClockShortMs / 1000}", { ui.send(Command.ResetShotClock(true)) }, minHeight = 52.dp,
-                    textStyle = MaterialTheme.typography.headlineSmall, enabled = !s.finalized)
-            }
+        if (s.rules.shotClockShortMs != s.rules.shotClockFullMs) {
+            WttButton("${s.rules.shotClockShortMs / 1000}", { ui.send(Command.ResetShotClock(true)) }, Modifier.widthIn(min = 56.dp),
+                minHeight = 48.dp, textStyle = MaterialTheme.typography.titleLarge, enabled = !s.finalized)
         }
-        if (s.shotHeld) Text("SHOT CLOCK HOLD", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted)
     }
 }
 
 @Composable
-private fun TimeoutPanel(ui: LiveUi) {
-    val t = ui.s.timeout ?: return
-    val team = ui.s.team(t.side).info
+private fun TimeoutBar(ui: LiveUi, side: TeamSide, remaining: Long) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(Wtt.Amber).padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().height(LiveLayoutSpec.SHOT_ROW.dp).background(Wtt.Amber).padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            Text("TIMEOUT", style = MaterialTheme.typography.labelMedium, color = Wtt.Black)
-            Text(team.name.uppercase(), style = MaterialTheme.typography.titleLarge, color = Wtt.Black, maxLines = 1)
-        }
-        Text(ClockFormat.countdown(t.countdown.at(ui.now)).replace("!", ""), style = MaterialTheme.typography.displaySmall, color = Wtt.Black)
-        Spacer(Modifier.width(12.dp))
+        Text("TIMEOUT ${ui.s.team(side).info.shortName}", style = MaterialTheme.typography.titleMedium, color = Wtt.Black,
+            maxLines = 1, modifier = Modifier.weight(1f))
+        Text(ClockFormat.countdown(remaining).replace("!", ""), style = MaterialTheme.typography.headlineMedium, color = Wtt.Black)
+        Spacer(Modifier.width(8.dp))
         WttButton("End", { ui.send(Command.EndTimeout) }, container = Wtt.Black, content = Wtt.Amber, minHeight = 48.dp)
     }
 }
 
+// =========================================================================================
+// Bottom strip: per-team score/foul/more, undo/redo in the middle
+// =========================================================================================
+
 @Composable
-private fun MainButton(ui: LiveUi, onBox: () -> Unit, modifier: Modifier) {
-    val s = ui.s
-    val style = MaterialTheme.typography.headlineMedium
-    when {
-        s.finalized -> WttButton("Final · box score", onBox, modifier, kind = ButtonKind.SECONDARY, icon = WttIcons.Table, minHeight = 72.dp, textStyle = style)
-        s.status == GameStatus.PERIOD_BREAK -> {
-            val label = when (val a = s.nextPeriodAction()) {
-                is PeriodAction.Next -> "Go to ${ClockFormat.periodShort(a.period, s.rules)}"
-                is PeriodAction.Overtime -> "Go to overtime ${a.period - s.rules.regulationPeriods}"
-                PeriodAction.Final -> "End game · final"
-            }
-            WttButton(label, { ui.send(Command.NextPeriod) }, modifier, kind = ButtonKind.PRIMARY, minHeight = 72.dp, textStyle = style)
+private fun ActionStrip(ui: LiveUi, spec: LiveLayoutSpec, scoreButtons: Int) {
+    Row(
+        Modifier.fillMaxWidth().height(spec.stripHeight.dp).padding(horizontal = LiveLayoutSpec.STRIP_PAD.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TeamGroup(ui, TeamSide.HOME, spec, scoreButtons)
+        Spacer(Modifier.weight(1f))
+        WttIconButton(WttIcons.Undo, "Undo ${ui.live.undoLabel ?: ""}", { ui.send(Command.Undo) }, enabled = ui.live.canUndo)
+        if (spec.showRedo) {
+            Spacer(Modifier.width(spec.buttonGap.dp))
+            WttIconButton(WttIcons.Redo, "Redo ${ui.live.redoLabel ?: ""}", { ui.send(Command.Redo) }, enabled = ui.live.canRedo)
         }
-        s.clock.running -> WttButton("Stop", { ui.send(Command.StopClock) }, modifier, kind = ButtonKind.DANGER, icon = WttIcons.Pause, minHeight = 72.dp, textStyle = style)
-        else -> WttButton(if (s.timeout != null) "End timeout · start" else "Start", { ui.send(Command.StartClock) }, modifier,
-            kind = ButtonKind.PRIMARY, icon = WttIcons.Play, minHeight = 72.dp, textStyle = style)
+        Spacer(Modifier.weight(1f))
+        TeamGroup(ui, TeamSide.AWAY, spec, scoreButtons)
     }
 }
 
 @Composable
-private fun TeamControls(ui: LiveUi, side: TeamSide, modifier: Modifier) {
+private fun TeamGroup(ui: LiveUi, side: TeamSide, spec: LiveLayoutSpec, scoreButtons: Int) {
     val s = ui.s
     val enabled = !s.finalized
-    val big = MaterialTheme.typography.headlineSmall
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(s.team(side).info.shortName, style = MaterialTheme.typography.labelMedium, color = Wtt.Muted)
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (pts in 1..3) {
-                WttButton(
-                    "+$pts", { ui.send(Command.AddScore(side, pts)) }, Modifier.weight(1f), enabled = enabled, minHeight = 60.dp, textStyle = big,
-                    onLongClick = { ui.open(LiveDialog.ScoreFor(side, pts)) },
-                )
+    val short = s.team(side).info.shortName
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(spec.buttonGap.dp)) {
+            for (pts in 1..scoreButtons) {
+                StripButton("+$pts", "Add $pts to $short", spec, enabled, onLongClickLabel = "Pick scorer",
+                    onLongClick = { ui.open(LiveDialog.ScoreFor(side, pts)) }) { ui.send(Command.AddScore(side, pts)) }
             }
+            StripButton("FOUL", "Foul $short", spec, enabled, content = Wtt.Amber) { ui.open(LiveDialog.Foul(side)) }
+            StripButton("•••", "$short timeouts and players", spec, true) { ui.open(LiveDialog.Team(side)) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            WttButton("Foul", { ui.open(LiveDialog.Foul(side)) }, Modifier.weight(1f), icon = WttIcons.Whistle, enabled = enabled, minHeight = 52.dp)
-            WttButton(
-                "T/O", { ui.send(Command.StartTimeout(side)) }, Modifier.weight(1f), icon = WttIcons.Timeout,
-                enabled = enabled && s.timeout == null && s.timeoutsRemaining(side) > 0, minHeight = 52.dp,
-            )
-        }
+        Box(Modifier.width(spec.teamGroupWidth.dp).height(4.dp).background(Wtt.argb(s.team(side).info.colorArgb)))
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlayerList(ui: LiveUi, side: TeamSide, modifier: Modifier) {
+private fun StripButton(
+    text: String,
+    label: String,
+    spec: LiveLayoutSpec,
+    enabled: Boolean,
+    content: Color = Wtt.OffWhite,
+    onLongClickLabel: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
+    Box(
+        Modifier.size(spec.buttonWidth.dp, LiveLayoutSpec.MIN_TOUCH.dp)
+            .background(if (enabled) Wtt.PanelHigh else Wtt.Panel)
+            .combinedClickable(
+                enabled = enabled, role = Role.Button, onClickLabel = label,
+                onLongClickLabel = onLongClickLabel, onLongClick = onLongClick, onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = if (text.startsWith("+")) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleSmall,
+            color = if (enabled) content else Wtt.Disabled, maxLines = 1, softWrap = false)
+    }
+}
+
+// =========================================================================================
+// Dialogs and overlays
+// =========================================================================================
+
+/** Team "•••": timeouts, players (points/fouls) and per-player actions. */
+@Composable
+private fun TeamDialog(ui: LiveUi, side: TeamSide, onDismiss: () -> Unit) {
     val s = ui.s
-    val roster = s.roster(side)
-    Column(modifier.padding(horizontal = 8.dp)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-            Text(s.team(side).info.shortName, style = MaterialTheme.typography.labelMedium, color = Wtt.Muted, modifier = Modifier.weight(1f))
-            Text("PTS", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted, modifier = Modifier.width(32.dp), textAlign = TextAlign.End)
-            Text("PF", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted, modifier = Modifier.width(28.dp), textAlign = TextAlign.End)
+    val t = s.team(side)
+    val tos = s.timeoutsRemaining(side)
+    WttDialog("${t.info.shortName} · ${t.info.name}", onDismiss) {
+        Text("${t.score} PTS · ${s.teamFouls(side)} team fouls · $tos timeouts left" +
+            when (s.inBonus(side)) { PenaltyLevel.BONUS -> " · BONUS"; PenaltyLevel.DOUBLE_BONUS -> " · DOUBLE BONUS"; else -> "" },
+            style = MaterialTheme.typography.titleMedium, color = Wtt.OffWhite, modifier = Modifier.padding(top = 8.dp))
+        Spacer(Modifier.height(8.dp))
+        WttButton("Call timeout · $tos left", { ui.send(Command.StartTimeout(side)); onDismiss() }, Modifier.fillMaxWidth(),
+            kind = ButtonKind.PRIMARY, icon = WttIcons.Timeout, enabled = !s.finalized && s.timeout == null && tos > 0, minHeight = 52.dp)
+        SectionLabel("Players · tap for score, fouls, edit")
+        JerseyGrid(s, side, onPick = { ui.open(LiveDialog.Player(it.id)) })
+        Text("Tip: long-press +1 / +2 / +3 to pick the scorer first.", style = MaterialTheme.typography.bodySmall,
+            color = Wtt.Muted, modifier = Modifier.padding(vertical = 8.dp))
+    }
+}
+
+/** Next period / overtime prompt / confirm final. */
+@Composable
+private fun PeriodDialog(s: GameState, send: (Command) -> Unit, onDismiss: () -> Unit) {
+    val home = s.team(TeamSide.HOME)
+    val away = s.team(TeamSide.AWAY)
+    val score = "${home.info.shortName} ${home.score} – ${away.score} ${away.info.shortName}"
+    val (title, body, button) = when (val a = s.nextPeriodAction()) {
+        is PeriodAction.Next -> Triple("End of ${ClockFormat.periodShort(s.period, s.rules)}", score,
+            "Start ${ClockFormat.periodShort(a.period, s.rules)}")
+        is PeriodAction.Overtime -> Triple("Tied · overtime", "$score\nOvertime ${a.period - s.rules.regulationPeriods} · " +
+            "${s.rules.overtimeLengthMs / 60_000} min", "Start overtime")
+        PeriodAction.Final -> Triple("Game over", score, "Confirm final")
+    }
+    WttDialog(title, onDismiss, buttons = {
+        WttButton("Not yet", onDismiss, kind = ButtonKind.GHOST)
+        WttButton(button, { send(Command.NextPeriod); onDismiss() }, kind = ButtonKind.PRIMARY, minHeight = 52.dp)
+    }) {
+        Text(body, style = MaterialTheme.typography.headlineSmall, color = Wtt.OffWhite, modifier = Modifier.padding(vertical = 12.dp))
+        if (s.status != GameStatus.PERIOD_BREAK) {
+            Text("The period clock still shows ${ClockFormat.plain(s.clock.baseMs, true)}.", style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
         }
-        if (roster.isEmpty()) Text("No roster", style = MaterialTheme.typography.bodySmall, color = Wtt.Disabled)
-        for (p in roster) {
-            val out = p.disqualified(s.rules)
-            val trouble = p.inFoulTrouble(s.rules)
-            Row(
-                Modifier.fillMaxWidth().height(40.dp).clickable(onClickLabel = "Player actions") { ui.open(LiveDialog.Player(p.id)) },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.width(30.dp)) {
-                    Text(p.info.number, style = MaterialTheme.typography.titleMedium, color = if (out) Wtt.Red else Wtt.OffWhite)
-                }
-                Text(p.info.name.ifBlank { "—" }, style = MaterialTheme.typography.bodyMedium, color = if (out) Wtt.Red else Wtt.OffWhite,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                for ((type, n) in p.flagBadges()) Pill(type.code + if (n > 1) n else "", Wtt.Red, Wtt.OffWhite, Modifier.padding(start = 2.dp))
-                Text("${p.points}", style = MaterialTheme.typography.titleSmall, color = Wtt.OffWhite, modifier = Modifier.width(32.dp), textAlign = TextAlign.End)
-                Text(
-                    "${p.countedFouls(s.rules)}", style = MaterialTheme.typography.titleSmall,
-                    color = when { out -> Wtt.Red; trouble -> Wtt.Amber; else -> Wtt.OffWhite },
-                    modifier = Modifier.width(28.dp), textAlign = TextAlign.End,
-                )
+    }
+}
+
+@Composable
+private fun GameOverOverlay(
+    s: GameState,
+    onBox: () -> Unit,
+    onLog: () -> Unit,
+    onBack: () -> Unit,
+    onReopen: () -> Unit,
+    onHide: () -> Unit,
+) {
+    val home = s.team(TeamSide.HOME)
+    val away = s.team(TeamSide.AWAY)
+    Box(Modifier.fillMaxSize().background(Wtt.Black).clickable(enabled = false) {}, contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("FINAL", style = MaterialTheme.typography.displaySmall, color = Wtt.Red)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 12.dp)) {
+                TeamTag(home.info.shortName, home.info.colorArgb)
+                Spacer(Modifier.width(12.dp))
+                SegmentText(pad3(home.score), 64.sp, color = Wtt.Amber, spoken = "${home.info.name} ${home.score}")
+                Text("  –  ", style = MaterialTheme.typography.displaySmall, color = Wtt.Muted)
+                SegmentText(pad3(away.score), 64.sp, color = Wtt.Amber, spoken = "${away.info.name} ${away.score}")
+                Spacer(Modifier.width(12.dp))
+                TeamTag(away.info.shortName, away.info.colorArgb)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WttButton("Box score", onBox, kind = ButtonKind.PRIMARY, icon = WttIcons.Table, minHeight = 52.dp)
+                WttButton("Event log", onLog, icon = WttIcons.Log, minHeight = 52.dp)
+                WttButton("Scoreboard", onHide, kind = ButtonKind.GHOST, minHeight = 52.dp)
+                WttButton("Reopen", onReopen, kind = ButtonKind.GHOST, minHeight = 52.dp)
+                WttButton("Games", onBack, kind = ButtonKind.GHOST, icon = WttIcons.Back, minHeight = 52.dp)
             }
         }
     }
@@ -499,7 +668,8 @@ fun MenuDialog(onDismiss: () -> Unit, items: List<Pair<String, () -> Unit>>) {
                 Modifier.fillMaxWidth().height(52.dp).clickable { onDismiss(); action() },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(label.uppercase(), style = MaterialTheme.typography.titleMedium, color = Wtt.OffWhite, modifier = Modifier.weight(1f))
+                Text(label.uppercase(), style = MaterialTheme.typography.titleMedium, color = Wtt.OffWhite, modifier = Modifier.weight(1f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Icon(WttIcons.ChevronRight, null, tint = Wtt.Muted, modifier = Modifier.size(20.dp))
             }
             HRule()

@@ -1,0 +1,9 @@
+# Build outputs and IDE state
+.idea/
+**/build/
+android/.gradle/
+android/.kotlin/
+android/.idea/
+android/local.properties
+*.iml
+.DS_Store

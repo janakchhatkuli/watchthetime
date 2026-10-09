@@ -90,6 +90,11 @@ data class Rules(
     val targetScore: Int = 0,
     /** Overtime ends as soon as a team has scored this many points in it (3x3: 2). 0 = off. */
     val overtimeWinPoints: Int = 0,
+    /**
+     * 3x3 scoring style. false = official 1 & 2 (inside / outside the arc);
+     * true = arcade-style 2 & 3 (inside / behind the arc). Free throws are always 1.
+     */
+    val arcScoring: Boolean = false,
 
     // --- Player fouls -------------------------------------------------------------------
     /** Player is disqualified when counted fouls reach this number. 0 = no foul-out (3x3). */
@@ -164,7 +169,11 @@ data class Rules(
     val isThreeByThree: Boolean get() = kind == GameKind.THREE_X_THREE
 
     /** Point values offered on the score buttons. */
-    val scoringPoints: List<Int> get() = if (isThreeByThree) listOf(1, 2) else listOf(1, 2, 3)
+    val scoringPoints: List<Int> get() = when {
+        !isThreeByThree -> listOf(1, 2, 3)
+        arcScoring -> listOf(2, 3)
+        else -> listOf(1, 2)
+    }
 
     /** True when [clockMs] in [period] is inside the official "clock stops after a score" window. */
     fun inLateWindow(period: Int, clockMs: Long): Boolean {

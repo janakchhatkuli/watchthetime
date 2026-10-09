@@ -84,14 +84,29 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
             WttChip("2 halves", rules.format == PeriodFormat.HALVES, { set(rules.copy(format = PeriodFormat.HALVES)) })
         }
     }
-    val pMin = (rules.periodLengthMs / Rules.MIN).toInt()
-    Stepper("Period length", "$pMin min",
-        { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, -1) * Rules.MIN)) },
-        { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, 1) * Rules.MIN)) })
-    val oMin = (rules.overtimeLengthMs / Rules.MIN).toInt()
-    Stepper("Overtime length", "$oMin min",
-        { set(rules.copy(overtimeLengthMs = cycle(Rules.OVERTIME_LENGTH_CHOICES_MIN, oMin, -1) * Rules.MIN)) },
-        { set(rules.copy(overtimeLengthMs = cycle(Rules.OVERTIME_LENGTH_CHOICES_MIN, oMin, 1) * Rules.MIN)) })
+    if (rules.isThreeByThree) {
+        Stepper("Game to", "${rules.targetScore}",
+            { set(rules.copy(targetScore = (rules.targetScore - 1).coerceAtLeast(1))) },
+            { set(rules.copy(targetScore = rules.targetScore + 1)) })
+        Stepper("Overtime to", "${rules.overtimeWinPoints}",
+            { set(rules.copy(overtimeWinPoints = (rules.overtimeWinPoints - 1).coerceAtLeast(1))) },
+            { set(rules.copy(overtimeWinPoints = rules.overtimeWinPoints + 1)) })
+        SectionLabel("Scoring")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WttChip("1 & 2", !rules.arcScoring, { set(rules.copy(arcScoring = false)) })
+            WttChip("2 & 3 (arc)", rules.arcScoring, { set(rules.copy(arcScoring = true)) }, selectedColor = Wtt.Amber)
+        }
+        Text("Free throws are always 1 point.", style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
+    } else {
+        val pMin = (rules.periodLengthMs / Rules.MIN).toInt()
+        Stepper("Period length", "$pMin min",
+            { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, -1) * Rules.MIN)) },
+            { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, 1) * Rules.MIN)) })
+        val oMin = (rules.overtimeLengthMs / Rules.MIN).toInt()
+        Stepper("Overtime length", "$oMin min",
+            { set(rules.copy(overtimeLengthMs = cycle(Rules.OVERTIME_LENGTH_CHOICES_MIN, oMin, -1) * Rules.MIN)) },
+            { set(rules.copy(overtimeLengthMs = cycle(Rules.OVERTIME_LENGTH_CHOICES_MIN, oMin, 1) * Rules.MIN)) })
+    }
 
     SectionLabel("Player fouls")
     Stepper("Foul-out at", "${rules.playerFoulLimit}",

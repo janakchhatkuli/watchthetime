@@ -198,8 +198,32 @@ class RulesEngineTest {
         val (s, _) = threeByThree()
         assertTrue(s.dispatch(Command.AddScore(HOME, 1, shot = ShotType.FIELD_GOAL)).ok)
         assertTrue(s.dispatch(Command.AddScore(HOME, 2, shot = ShotType.ARC)).ok)
-        assertFalse(s.dispatch(Command.AddScore(HOME, 3)).ok, "no 3-pointers in 3x3")
+        assertFalse(s.dispatch(Command.AddScore(HOME, 3)).ok, "no 3-pointers in classic 3x3")
         assertEquals(3, s.state.team(HOME).score)
+    }
+
+    @Test
+    fun threeByThreeArcScoringOffersTwoAndThree() {
+        val rules = Rules.preset(RulePreset.FIBA_3X3).copy(arcScoring = true).validated()
+        val (s, _) = Fixtures.session(rules, policy = ClockPolicy(ClockMode.RUNNING))
+        assertEquals(listOf(2, 3), s.state.rules.scoringPoints)
+        assertFalse(s.dispatch(Command.AddScore(HOME, 1, shot = ShotType.FIELD_GOAL)).ok, "1 is not a field-goal value in arc mode")
+        assertTrue(s.dispatch(Command.AddScore(HOME, 1, shot = ShotType.FREE_THROW)).ok, "free throws still 1")
+        assertTrue(s.dispatch(Command.AddScore(HOME, 2)).ok)
+        assertTrue(s.dispatch(Command.AddScore(HOME, 3, shot = ShotType.ARC)).ok)
+        assertEquals(6, s.state.team(HOME).score)
+    }
+
+    @Test
+    fun threeByThreeTargetScoreIsEditable() {
+        val rules = Rules.preset(RulePreset.FIBA_3X3).copy(targetScore = 11).validated()
+        val (s, _) = Fixtures.session(rules, policy = ClockPolicy(ClockMode.RUNNING))
+        s.dispatch(Command.StartClock)
+        repeat(5) { s.dispatch(Command.AddScore(HOME, 2, shot = ShotType.ARC)) }
+        assertFalse(s.state.finalized, "10 is short of 11")
+        s.dispatch(Command.AddScore(HOME, 2, shot = ShotType.ARC))
+        assertTrue(s.state.finalized, "reaches the custom target")
+        assertEquals(12, s.state.team(HOME).score)
     }
 
     @Test

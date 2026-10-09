@@ -48,7 +48,8 @@ fun FoulTypeChips(type: FoulType, onPick: (FoulType) -> Unit, types: List<FoulTy
 
 /**
  * Foul entry: choose the type (Personal by default), then tap the jersey. With
- * "confirm foul type" on, a jersey tap selects and RECORD commits.
+ * "confirm foul type" on, a jersey tap selects and RECORD commits. Team/bench
+ * always records immediately as a team foul (no player).
  */
 @Composable
 fun FoulDialog(
@@ -61,28 +62,25 @@ fun FoulDialog(
     val foulTypes = s.rules.foulTypes
     var type by remember(foulTypes) { mutableStateOf(foulTypes.firstOrNull() ?: FoulType.PERSONAL) }
     var selected by remember { mutableStateOf<String?>(null) }
-    var bench by remember { mutableStateOf(false) }
     WttDialog(
         "Foul · ${s.team(side).info.shortName}", onDismiss,
         buttons = {
             if (confirmStep) {
                 WttButton("Cancel", onDismiss, kind = ButtonKind.GHOST)
-                WttButton("Record foul", { onRecord(selected, type) }, kind = ButtonKind.PRIMARY, enabled = selected != null || bench)
+                WttButton("Record foul", { onRecord(selected, type) }, kind = ButtonKind.PRIMARY, enabled = selected != null)
             }
         },
     ) {
         SectionLabel("Type")
         FoulTypeChips(type, { type = it }, foulTypes)
-        SectionLabel("Player")
+        SectionLabel("Player · jersey number")
         JerseyGrid(s, side, selectedId = selected, onPick = { p ->
-            if (confirmStep) { selected = p.id; bench = false } else onRecord(p.id, type)
+            if (confirmStep) selected = p.id else onRecord(p.id, type)
         })
         Spacer(Modifier.height(10.dp))
         WttButton(
-            "Team / bench (no player)", {
-                if (confirmStep) { selected = null; bench = true } else onRecord(null, type)
-            },
-            kind = if (bench) ButtonKind.PRIMARY else ButtonKind.GHOST, modifier = Modifier.fillMaxWidth(),
+            "Team / bench foul", { onRecord(null, type) },
+            kind = ButtonKind.SECONDARY, modifier = Modifier.fillMaxWidth(), minHeight = 52.dp,
         )
         Spacer(Modifier.height(4.dp))
         Text(

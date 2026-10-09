@@ -223,7 +223,10 @@ class GameSession(
 
             is Command.AddScore -> {
                 if (s.finalized) return "Game is final"
-                if (cmd.points !in s.rules.scoringPoints) return "Invalid points"
+                // Free throws are always 1 point, even in 3x3 arc mode (2 & 3).
+                val legal = cmd.points in s.rules.scoringPoints ||
+                    (cmd.shot == ShotType.FREE_THROW && cmd.points == 1)
+                if (!legal) return "Invalid points"
                 val stopped = autoStop(StopTrigger.SCORE, tx)
                 tx.append(Score(cmd.side, cmd.points, cmd.playerId, cmd.shot))
                 // A made basket always resets the shot clock, in every format.

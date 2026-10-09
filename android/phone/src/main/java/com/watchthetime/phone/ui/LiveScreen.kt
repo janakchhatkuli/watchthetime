@@ -175,7 +175,7 @@ fun LiveScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Wtt.Black).safeDrawingPadding()) {
-        val scoreButtons = s.rules.scoringPoints.max()
+        val scoreButtons = s.rules.scoringPoints.size
         val spec = remember(maxWidth, maxHeight, scoreButtons) {
             LiveLayoutSpec.compute(maxWidth.value, maxHeight.value, scoreButtons)
         }
@@ -550,7 +550,7 @@ private fun TeamGroup(ui: LiveUi, side: TeamSide, spec: LiveLayoutSpec, scoreBut
     val short = s.team(side).info.shortName
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(spec.buttonGap.dp)) {
-            for (pts in 1..scoreButtons) {
+            for (pts in s.rules.scoringPoints) {
                 StripButton("+$pts", "Add $pts to $short", spec, enabled, onLongClickLabel = "Pick scorer",
                     onLongClick = { ui.open(LiveDialog.ScoreFor(side, pts)) }) { ui.send(Command.AddScore(side, pts)) }
             }

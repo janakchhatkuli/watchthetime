@@ -5,6 +5,7 @@ import com.watchthetime.domain.model.FoulType
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -46,6 +47,7 @@ sealed interface Command {
     @Serializable @SerialName("player_upsert") data class UpsertPlayer(val player: PlayerInfo) : Command
     @Serializable @SerialName("player_remove") data class RemovePlayer(val playerId: String) : Command
     @Serializable @SerialName("rules") data class UpdateRules(val rules: Rules) : Command
+    @Serializable @SerialName("clock_policy") data class SetClockPolicy(val policy: ClockPolicy) : Command
 
     // Event log editing
     @Serializable @SerialName("edit_event")

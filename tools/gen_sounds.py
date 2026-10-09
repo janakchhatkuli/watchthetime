@@ -125,6 +125,18 @@ SOUNDS: dict[str, np.ndarray] = {
     "redo": sweep(700, 1400, 0.14),
     "edit_saved": seq(click(0.4), beep(1600, 0.05, 0.1, 0.4)),
     "error": seq(beep(180, 0.14, 0.8), silence(0.05), beep(180, 0.14, 0.8)),
+    # --- Added for clock modes / landscape redesign. Keep new entries at the END: the whistle
+    # noise uses a seeded RNG in order, so appending keeps every earlier file byte-identical.
+    # Mode changed: up-down three-note chirp (no other cue goes up then down).
+    "mode_changed": seq(beep(660, 0.08, 0.2), beep(990, 0.08, 0.2), beep(660, 0.12, 0.2)),
+    # Timeout warning (FIBA signal before the end of a time-out): one short mid horn.
+    "timeout_warning": horn(0.25, 294),
+    # Interval over: medium horn + high pip (shorter and higher than the period-end horn).
+    "interval_end": seq(horn(0.5, 247), silence(0.1), beep(1320, 0.12)),
+    # Substitution: hi-lo-hi pips.
+    "substitution": seq(beep(1200, 0.05), silence(0.03), beep(900, 0.05), silence(0.03), beep(1200, 0.05)),
+    # Free throws: short whistle then two pips.
+    "free_throws": seq(whistle(0.2, 2600), silence(0.05), beep(1050, 0.06), silence(0.08), beep(1050, 0.06)),
 }
 
 

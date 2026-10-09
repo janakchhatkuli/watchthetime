@@ -4,6 +4,7 @@ import com.watchthetime.domain.model.FoulType
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -68,10 +69,16 @@ data class GameCreated(
     val away: TeamInfo,
     val roster: List<PlayerInfo> = emptyList(),
     val title: String = "",
+    /** Missing in games created before clock modes existed: those behave as running time. */
+    val clockPolicy: ClockPolicy = ClockPolicy(),
 ) : EventPayload
 
 @Serializable @SerialName("rules")
 data class RulesUpdated(val rules: Rules) : EventPayload
+
+/** Clock mode switched mid-game (logged so the change is visible and undoable). */
+@Serializable @SerialName("clock_policy")
+data class ClockPolicyChanged(val policy: ClockPolicy) : EventPayload
 
 @Serializable @SerialName("team")
 data class TeamUpdated(val side: TeamSide, val info: TeamInfo) : EventPayload
@@ -87,9 +94,12 @@ data class PlayerRemoved(val playerId: String) : EventPayload
 @Serializable @SerialName("clock_start")
 data object ClockStarted : EventPayload
 
-/** Stop. Remaining time is *computed* from the start anchor so edits upstream recompute. */
+/**
+ * Stop. Remaining time is *computed* from the start anchor so edits upstream recompute.
+ * [auto] = paused by the clock mode because an event was registered (stopping time).
+ */
 @Serializable @SerialName("clock_stop")
-data class ClockStopped(val expired: Boolean = false) : EventPayload
+data class ClockStopped(val expired: Boolean = false, val auto: Boolean = false) : EventPayload
 
 @Serializable @SerialName("clock_adjust")
 data class ClockAdjusted(val deltaMs: Long) : EventPayload
@@ -149,6 +159,7 @@ val EventPayload.kind: String
     get() = when (this) {
         is GameCreated -> "GAME"
         is RulesUpdated -> "RULES"
+        is ClockPolicyChanged -> "CLOCK"
         is TeamUpdated -> "TEAM"
         is PlayerUpserted, is PlayerRemoved -> "ROSTER"
         ClockStarted, is ClockStopped, is ClockAdjusted, is ClockSet -> "CLOCK"

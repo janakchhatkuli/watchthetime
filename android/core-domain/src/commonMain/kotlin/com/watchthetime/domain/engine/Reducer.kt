@@ -26,6 +26,7 @@ object Reducer {
                     created = true,
                     title = p.title,
                     rules = rules,
+                    clockPolicy = p.clockPolicy,
                     teams = mapOf(
                         TeamSide.HOME to s.team(TeamSide.HOME).copy(info = p.home),
                         TeamSide.AWAY to s.team(TeamSide.AWAY).copy(info = p.away),
@@ -44,6 +45,8 @@ object Reducer {
             }
 
             is TeamUpdated -> s.copy(teams = s.teams + (p.side to s.team(p.side).copy(info = p.info)))
+
+            is ClockPolicyChanged -> s.copy(clockPolicy = p.policy)
 
             is PlayerUpserted -> {
                 val existing = s.players[p.player.id]

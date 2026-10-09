@@ -5,6 +5,7 @@ import com.watchthetime.domain.model.FoulType
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 
 /**
@@ -107,6 +108,7 @@ data class GameState(
     val created: Boolean = false,
     val title: String = "",
     val rules: Rules = Rules(),
+    val clockPolicy: ClockPolicy = ClockPolicy(),
     val teams: Map<TeamSide, TeamState> = TeamSide.entries.associateWith { TeamState(it, TeamInfo.default(it)) },
     val players: Map<String, PlayerState> = emptyMap(),
     val period: Int = 1,

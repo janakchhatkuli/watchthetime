@@ -76,8 +76,18 @@ object CueCatalog {
             "Two-tone alternating beeps", "four alternating")
         CueType.TIMEOUT_START -> CueSpec(c, R.raw.cue_timeout_start, Haptic.pulses(150L to M, 300L to M, gap = 120),
             "Whistle + mid tone", "medium + long")
+        CueType.TIMEOUT_WARNING -> CueSpec(c, R.raw.cue_timeout_warning, Haptic.pulses(120L to H, 120L to L, gap = 60),
+            "One short mid horn", "strong-weak")
         CueType.TIMEOUT_END -> CueSpec(c, R.raw.cue_timeout_end, Haptic.pulses(300L to H, 300L to H, gap = 150),
             "Two short horns", "two long strong")
+        CueType.INTERVAL_END -> CueSpec(c, R.raw.cue_interval_end, Haptic.pulses(400L to H, 100L to M, gap = 120),
+            "Horn + high pip", "long + short")
+        CueType.SUBSTITUTION -> CueSpec(c, R.raw.cue_substitution, Haptic.pulses(20L to H, 150L to L, gap = 40),
+            "Hi-lo-hi pips", "flick + hum")
+        CueType.FREE_THROWS -> CueSpec(c, R.raw.cue_free_throws, Haptic.pulses(150L to M, 30L to H, gap = 60),
+            "Short whistle + two pips", "medium + tap")
+        CueType.MODE_CHANGED -> CueSpec(c, R.raw.cue_mode_changed, Haptic.pulses(40L to L, 40L to H, 40L to L, gap = 50),
+            "Up-down chirp", "soft-HARD-soft")
         CueType.UNDO -> CueSpec(c, R.raw.cue_undo, Haptic.pulses(30L to L, 30L to L, gap = 40),
             "Falling sweep", "double tick")
         CueType.REDO -> CueSpec(c, R.raw.cue_redo, Haptic.pulses(30L to L, 30L to L, 30L to L, gap = 40),

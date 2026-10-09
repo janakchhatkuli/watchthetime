@@ -30,10 +30,15 @@ enum class CueType(val label: String, val priority: Int) {
     FOUL_OUT("Foul-out / ejection", 5),
     BONUS("Team in bonus", 4),
     TIMEOUT_START("Timeout start", 3),
+    TIMEOUT_WARNING("Timeout ending soon", 3),
     TIMEOUT_END("Timeout end", 4),
+    INTERVAL_END("Interval over", 4),
+    SUBSTITUTION("Substitution", 2),
+    FREE_THROWS("Free throws", 2),
     UNDO("Undo", 1),
     REDO("Redo", 1),
     EDIT_SAVED("Edit saved", 1),
+    MODE_CHANGED("Clock mode changed", 3),
     ERROR("Error", 3),
 }
 

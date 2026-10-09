@@ -6,6 +6,8 @@ import com.watchthetime.domain.event.Stamp
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockMode
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 
 /** Controllable clock for deterministic tests. */
@@ -27,10 +29,15 @@ object Fixtures {
         PlayerInfo("a11", TeamSide.AWAY, "11", "Fay"),
     )
 
-    fun session(rules: Rules = Rules(), time: FakeTime = FakeTime()): Pair<GameSession, FakeTime> {
+    /** Default policy is RUNNING time (the behaviour these tests were written against). */
+    fun session(
+        rules: Rules = Rules(),
+        time: FakeTime = FakeTime(),
+        policy: ClockPolicy = ClockPolicy(ClockMode.RUNNING),
+    ): Pair<GameSession, FakeTime> {
         var n = 0
         val s = GameSession("g1", emptyList(), time, "watch", newId = { "e${++n}" })
-        s.create(rules, TeamInfo.default(TeamSide.HOME), TeamInfo.default(TeamSide.AWAY), homePlayers + awayPlayers, "Test")
+        s.create(rules, TeamInfo.default(TeamSide.HOME), TeamInfo.default(TeamSide.AWAY), homePlayers + awayPlayers, "Test", policy)
         return s to time
     }
 }

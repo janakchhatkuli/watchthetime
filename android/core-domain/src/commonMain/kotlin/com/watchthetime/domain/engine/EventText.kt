@@ -13,11 +13,16 @@ object EventText {
         return when (val p = e.payload) {
             is GameCreated -> "Game created · ${p.home.shortName} vs ${p.away.shortName}"
             is RulesUpdated -> "Rules changed (${p.rules.preset.label})"
+            is ClockPolicyChanged -> "Clock mode → ${p.policy.summary}"
             is TeamUpdated -> "Team ${p.side.tag}: ${p.info.name}"
             is PlayerUpserted -> "Roster ${team(p.player.side)}: ${p.player.label}"
             is PlayerRemoved -> "Roster: removed ${who(p.playerId) ?: "player"}"
             ClockStarted -> "Clock start"
-            is ClockStopped -> if (p.expired) "Buzzer: period expired" else "Clock stop"
+            is ClockStopped -> when {
+                p.expired -> "Buzzer: period expired"
+                p.auto -> "Clock stop (auto)"
+                else -> "Clock stop"
+            }
             is ClockAdjusted -> "Clock ${if (p.deltaMs >= 0) "+" else "−"}${kotlin.math.abs(p.deltaMs) / 1000.0}s"
             is ClockSet -> "Clock set ${ClockFormat.plain(p.remainingMs, true)}"
             is PeriodSet -> "Start ${ClockFormat.periodLong(p.period, s.rules).lowercase()}"

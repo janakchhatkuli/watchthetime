@@ -69,9 +69,21 @@ data class Rules(
 
     // --- Display --------------------------------------------------------------------------
     val lastMinuteWarningMs: Long = 60 * SEC,
+
+    // --- Late-game clock stops after a made basket -------------------------------------------
+    /** Last regulation period and every overtime: the clock stops on a score at or below this. 0 = never. */
+    val scoreStopFinalMs: Long = 2 * MIN,
+    /** Any other period. 0 = never. */
+    val scoreStopOtherMs: Long = 1 * MIN,
 ) {
     val regulationPeriods: Int get() = format.regulationPeriods
     val halfPeriod: Int get() = regulationPeriods / 2
+
+    /** True when [clockMs] in [period] is inside the official "clock stops after a score" window. */
+    fun inLateWindow(period: Int, clockMs: Long): Boolean {
+        val w = if (period >= regulationPeriods) scoreStopFinalMs else scoreStopOtherMs
+        return w > 0 && clockMs <= w
+    }
 
     fun isOvertime(period: Int) = period > regulationPeriods
     fun lengthOf(period: Int) = if (isOvertime(period)) overtimeLengthMs else periodLengthMs
@@ -123,6 +135,8 @@ data class Rules(
                 timeoutsCarryIntoOvertime = false,
                 shotClockFullMs = 24 * SEC,
                 shotClockShortMs = 14 * SEC,
+                scoreStopFinalMs = 2 * MIN,
+                scoreStopOtherMs = 0,
             )
             RulePreset.NCAA -> Rules(
                 preset = p,
@@ -149,6 +163,8 @@ data class Rules(
                 timeoutsCarryIntoOvertime = true,
                 shotClockFullMs = 30 * SEC,
                 shotClockShortMs = 20 * SEC,
+                scoreStopFinalMs = 59_900,
+                scoreStopOtherMs = 0,
             )
             RulePreset.NFHS -> Rules(
                 preset = p,

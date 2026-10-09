@@ -5,7 +5,9 @@ import com.watchthetime.domain.model.FoulType
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
+import com.watchthetime.domain.rules.StopTrigger
 import com.watchthetime.domain.state.Countdown
 import com.watchthetime.domain.state.GameState
 import com.watchthetime.domain.state.GameStatus
@@ -68,10 +70,17 @@ class GameSession(
     // Creation
     // ---------------------------------------------------------------------------------------
 
-    fun create(rules: Rules, home: TeamInfo, away: TeamInfo, roster: List<PlayerInfo>, title: String = ""): Outcome {
+    fun create(
+        rules: Rules,
+        home: TeamInfo,
+        away: TeamInfo,
+        roster: List<PlayerInfo>,
+        title: String = "",
+        clockPolicy: ClockPolicy = ClockPolicy.NEW_GAME,
+    ): Outcome {
         if (state.created) return Outcome(error = "Game already exists")
         val tx = Tx("Create game")
-        tx.append(GameCreated(rules, home, away, roster, title), period = 1, clockMs = rules.lengthOf(1))
+        tx.append(GameCreated(rules, home, away, roster, title, clockPolicy), period = 1, clockMs = rules.lengthOf(1))
         lastMinuteArmed = true
         return Outcome(tx.changes.map { it.after })
     }
@@ -215,26 +224,30 @@ class GameSession(
             is Command.AddScore -> {
                 if (s.finalized) return "Game is final"
                 if (cmd.points !in 1..3) return "Invalid points"
+                val stopped = autoStop(StopTrigger.SCORE, tx)
                 tx.append(Score(cmd.side, cmd.points, cmd.playerId))
                 val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
-                cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points} ${s.team(cmd.side).info.shortName}$who")
+                cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points} ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
+                if (stopped) cues += autoStopCue()
             }
 
             is Command.AddFoul -> {
                 if (s.finalized) return "Game is final"
+                val stopped = autoStop(StopTrigger.FOUL, tx)
                 tx.append(Foul(cmd.side, cmd.playerId, cmd.type))
                 val p = state.player(cmd.playerId)
                 val who = p?.let { "#${it.info.number}" } ?: "${s.team(cmd.side).info.shortName} BENCH"
                 val count = p?.let { " · ${it.countedFouls(state.rules)} PF" } ?: ""
-                cues += CueDiff.forFoul(cmd.type, cmd.side, "$who ${cmd.type.code}$count")
+                cues += CueDiff.forFoul(cmd.type, cmd.side, "$who ${cmd.type.code}$count" + stopSuffix(stopped))
+                if (stopped) cues += autoStopCue()
             }
 
             is Command.StartTimeout -> {
                 if (s.finalized) return "Game is final"
                 if (s.timeout != null) return "Timeout already running"
                 if (s.timeoutsRemaining(cmd.side) <= 0) return "${s.team(cmd.side).info.shortName}: no timeouts left"
-                if (s.clock.running) {
-                    tx.append(ClockStopped())
+                // A timeout always stops the clock, in every mode.
+                if (autoStop(StopTrigger.TIMEOUT, tx, force = true)) {
                     cues += Cue(CueType.CLOCK_STOP, text = "STOP")
                 }
                 tx.append(TimeoutStarted(cmd.side, s.rules.timeoutLengthMs))
@@ -275,6 +288,12 @@ class GameSession(
             is Command.UpdateRules -> {
                 tx.append(RulesUpdated(cmd.rules))
                 cues += Cue(CueType.EDIT_SAVED, text = "RULES SAVED")
+            }
+
+            is Command.SetClockPolicy -> {
+                if (cmd.policy == s.clockPolicy) return "Clock mode unchanged"
+                tx.append(ClockPolicyChanged(cmd.policy))
+                cues += Cue(CueType.MODE_CHANGED, text = cmd.policy.summary.uppercase())
             }
 
             is Command.EditEvent -> {
@@ -485,6 +504,24 @@ class GameSession(
 
     private fun fail(msg: String) = Outcome(cues = listOf(Cue(CueType.ERROR, text = msg.uppercase())), error = msg)
 
+    /**
+     * Pauses a running clock when the game's [ClockPolicy] says [trigger] stops it (or when
+     * [force]d). Written into the same transaction as the event, so one undo reverts both.
+     * Returns true when the clock was stopped.
+     */
+    private fun autoStop(trigger: StopTrigger, tx: Tx, force: Boolean = false): Boolean {
+        val s = state
+        if (!s.clock.running) return false
+        val stop = force || s.clockPolicy.stops(trigger, s.rules, s.period, s.clock.at(tx.now))
+        if (stop) tx.append(ClockStopped(auto = true))
+        return stop
+    }
+
+    private fun stopSuffix(stopped: Boolean) = if (stopped) " · CLOCK STOPPED" else ""
+
+    /** Added after the event's own cue (same priority, stable sort), so the event's sound plays and the banner names it. */
+    private fun autoStopCue() = Cue(CueType.CLOCK_STOP, text = "CLOCK STOPPED")
+
     private inner class Tx(val label: String) {
         val now: Stamp = time.now()
         val changes = mutableListOf<Change>()
@@ -535,6 +572,7 @@ class GameSession(
         is Command.UpsertPlayer -> "PLAYER #${cmd.player.number}"
         is Command.RemovePlayer -> "REMOVE PLAYER"
         is Command.UpdateRules -> "RULES"
+        is Command.SetClockPolicy -> "CLOCK MODE"
         is Command.EditEvent -> "EDIT"
         is Command.AssignPlayer -> "ASSIGN"
         is Command.DeleteEvent -> "DELETE"

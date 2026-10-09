@@ -465,6 +465,10 @@ class GameSession(
                     if (gameOver) CueType.GAME_FINAL else CueType.PERIOD_END,
                     text = "END ${ClockFormat.periodShort(s.period, s.rules)}",
                 )
+                if (gameOver) {
+                    state.timeout?.let { written += appendSystem(TimeoutEnded(it.side), at) }
+                    written += appendSystem(GameFinalized, at)
+                }
             }
         }
 

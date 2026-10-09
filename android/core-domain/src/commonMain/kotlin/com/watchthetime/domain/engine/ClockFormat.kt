@@ -59,13 +59,17 @@ object ClockFormat {
     fun spoken(display: String) = display.replace("!", "")
 
     fun periodShort(period: Int, rules: Rules): String = when {
+        rules.isOvertime(period) && rules.regulationPeriods == 1 -> if (period == 2) "OT" else "OT${period - 1}"
         rules.isOvertime(period) -> "OT${period - rules.regulationPeriods}"
+        rules.format == PeriodFormat.SINGLE -> "REG"
         rules.format == PeriodFormat.HALVES -> "H$period"
         else -> "Q$period"
     }
 
     fun periodLong(period: Int, rules: Rules): String = when {
+        rules.isOvertime(period) && rules.regulationPeriods == 1 -> "OVERTIME"
         rules.isOvertime(period) -> "OVERTIME ${period - rules.regulationPeriods}"
+        rules.format == PeriodFormat.SINGLE -> "REGULAR TIME"
         rules.format == PeriodFormat.HALVES -> if (period == 1) "1ST HALF" else "2ND HALF"
         else -> "${ordinal(period)} QUARTER"
     }

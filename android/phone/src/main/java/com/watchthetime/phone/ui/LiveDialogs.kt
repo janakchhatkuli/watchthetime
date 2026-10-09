@@ -35,12 +35,11 @@ import com.watchthetime.domain.model.TeamSide
 import com.watchthetime.domain.state.GameState
 
 @Composable
-fun FoulTypeChips(type: FoulType, onPick: (FoulType) -> Unit) {
+fun FoulTypeChips(type: FoulType, onPick: (FoulType) -> Unit, types: List<FoulType> = FoulType.entries) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        for (t in FoulType.entries) {
+        for (t in types) {
             WttChip(
-                when (t) { FoulType.PERSONAL -> "Personal"; FoulType.TECHNICAL -> "Tech"; FoulType.FLAGRANT -> "Flagrant"; FoulType.UNSPORTSMANLIKE -> "Unsp." },
-                type == t, { onPick(t) }, Modifier.weight(1f),
+                t.code, type == t, { onPick(t) }, Modifier.weight(1f),
                 selectedColor = if (t.isFlag) Wtt.Red else Wtt.Amber,
             )
         }
@@ -59,7 +58,8 @@ fun FoulDialog(
     onDismiss: () -> Unit,
     onRecord: (playerId: String?, type: FoulType) -> Unit,
 ) {
-    var type by remember { mutableStateOf(FoulType.PERSONAL) }
+    val foulTypes = s.rules.foulTypes
+    var type by remember(foulTypes) { mutableStateOf(foulTypes.firstOrNull() ?: FoulType.PERSONAL) }
     var selected by remember { mutableStateOf<String?>(null) }
     var bench by remember { mutableStateOf(false) }
     WttDialog(
@@ -72,7 +72,7 @@ fun FoulDialog(
         },
     ) {
         SectionLabel("Type")
-        FoulTypeChips(type) { type = it }
+        FoulTypeChips(type, { type = it }, foulTypes)
         SectionLabel("Player")
         JerseyGrid(s, side, selectedId = selected, onPick = { p ->
             if (confirmStep) { selected = p.id; bench = false } else onRecord(p.id, type)
@@ -100,6 +100,77 @@ fun PlayerPickDialog(s: GameState, side: TeamSide, title: String, onDismiss: () 
         JerseyGrid(s, side, onPick = { onPick(it.id) }, showFouls = false)
         Spacer(Modifier.height(10.dp))
         WttButton("Team (no player)", { onPick(null) }, kind = ButtonKind.GHOST, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** Log a set of free throws (made/attempts) for a team, optionally assigned to a shooter. */
+@Composable
+fun FreeThrowsDialog(
+    s: GameState,
+    side: TeamSide,
+    confirmStep: Boolean,
+    onDismiss: () -> Unit,
+    onRecord: (playerId: String?, made: Int, attempts: Int) -> Unit,
+) {
+    var made by remember { mutableStateOf(1) }
+    var attempts by remember { mutableStateOf(1) }
+    var selected by remember { mutableStateOf<String?>(null) }
+    var bench by remember { mutableStateOf(false) }
+    WttDialog("Free throws · ${s.team(side).info.shortName}", onDismiss, buttons = {
+        if (confirmStep) {
+            WttButton("Cancel", onDismiss, kind = ButtonKind.GHOST)
+            WttButton("Record", { onRecord(selected, made, attempts) }, kind = ButtonKind.PRIMARY)
+        }
+    }) {
+        SectionLabel("Shooter")
+        JerseyGrid(s, side, selectedId = selected, onPick = { p ->
+            if (confirmStep) { selected = p.id; bench = false } else onRecord(p.id, made, attempts)
+        })
+        Spacer(Modifier.height(6.dp))
+        WttButton("Team (no shooter)", {
+            if (confirmStep) { selected = null; bench = true } else onRecord(null, made, attempts)
+        }, kind = if (bench) ButtonKind.PRIMARY else ButtonKind.GHOST, modifier = Modifier.fillMaxWidth())
+        SectionLabel("Attempts")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (n in 1..5) WttChip("$n", attempts == n, { attempts = n; if (made > n) made = n }, Modifier.weight(1f))
+        }
+        SectionLabel("Made")
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (n in 0..5) WttChip("$n", made == n && n <= attempts, { if (n <= attempts) made = n }, Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text("Records one free-throw set; totals go to the shooter when one is picked.",
+            style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
+        Spacer(Modifier.height(6.dp))
+    }
+}
+
+/** Simple substitution: pick the player leaving, then the player entering. */
+@Composable
+fun SubDialog(s: GameState, side: TeamSide, onDismiss: () -> Unit, onRecord: (outId: String, inId: String) -> Unit) {
+    var out by remember { mutableStateOf<String?>(null) }
+    val short = s.team(side).info.shortName
+    WttDialog("Substitution · $short", onDismiss) {
+        SectionLabel(if (out == null) "Player OUT" else "Player IN")
+        JerseyGrid(
+            s, side, selectedId = if (out == null) null else null, showFouls = false,
+            onPick = { p ->
+                if (out == null) {
+                    if (p.disqualified(s.rules)) return@JerseyGrid // can't return an ejected player
+                    out = p.id
+                } else if (p.id != out) {
+                    onRecord(out!!, p.id)
+                    onDismiss()
+                }
+            },
+        )
+        if (out != null) {
+            Text("Leaving: #${s.player(out)?.info?.number} ${s.player(out)?.info?.name} · tap the player entering",
+                style = MaterialTheme.typography.bodySmall, color = Wtt.Amber, modifier = Modifier.padding(vertical = 8.dp))
+        } else {
+            Text("Tap the player leaving the court, then the one entering.",
+                style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(vertical = 8.dp))
+        }
     }
 }
 
@@ -143,17 +214,17 @@ fun PlayerDialog(s: GameState, playerId: String, send: (Command) -> Unit, onDism
         }
         SectionLabel("Score")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (pts in 1..3) WttButton("+$pts", { send(Command.AddScore(side, pts, p.id)); onDismiss() }, Modifier.weight(1f),
+            for (pts in s.rules.scoringPoints) WttButton("+$pts", { send(Command.AddScore(side, pts, p.id)); onDismiss() }, Modifier.weight(1f),
                 enabled = enabled, minHeight = 56.dp, textStyle = MaterialTheme.typography.headlineSmall)
         }
         SectionLabel("Foul")
+        val foulTypes = s.rules.foulTypes
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (t in FoulType.entries) WttButton(
+            for (t in foulTypes) WttButton(
                 t.code, { send(Command.AddFoul(side, p.id, t)); onDismiss() }, Modifier.weight(1f), enabled = enabled,
                 kind = if (t.isFlag) ButtonKind.DANGER else ButtonKind.SECONDARY, minHeight = 52.dp,
             )
         }
-        Text("P personal · T technical · F flagrant · U unsportsmanlike", style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 4.dp))
         SectionLabel("Roster")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             WttButton("Edit", { editing = true }, Modifier.weight(1f), icon = WttIcons.Pencil, kind = ButtonKind.GHOST)

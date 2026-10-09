@@ -92,6 +92,8 @@ sealed interface LiveDialog {
     data class Assign(val eventId: String, val side: TeamSide, val points: Int) : LiveDialog
     data class Player(val playerId: String) : LiveDialog
     data class Team(val side: TeamSide) : LiveDialog
+    data class FreeThrows(val side: TeamSide) : LiveDialog
+    data class Sub(val side: TeamSide) : LiveDialog
     data object Clock : LiveDialog
     data object Shot : LiveDialog
     data object Menu : LiveDialog
@@ -173,7 +175,7 @@ fun LiveScreen(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(Wtt.Black).safeDrawingPadding()) {
-        val scoreButtons = 3
+        val scoreButtons = s.rules.scoringPoints.max()
         val spec = remember(maxWidth, maxHeight, scoreButtons) {
             LiveLayoutSpec.compute(maxWidth.value, maxHeight.value, scoreButtons)
         }
@@ -217,6 +219,12 @@ fun LiveScreen(
         }
         is LiveDialog.Player -> PlayerDialog(s, d.playerId, send, onDismiss = { dialog = null })
         is LiveDialog.Team -> TeamDialog(ui, d.side, onDismiss = { dialog = null })
+        is LiveDialog.FreeThrows -> FreeThrowsDialog(s, d.side, settings.display.confirmFoulType, onDismiss = { dialog = null }) { pid, made, attempts ->
+            c.controller.dispatch(Command.AddFreeThrows(d.side, pid, attempts, made)); dialog = null
+        }
+        is LiveDialog.Sub -> SubDialog(s, d.side, onDismiss = { dialog = null }) { outId, inId ->
+            c.controller.dispatch(Command.AddSubstitution(d.side, outId, inId)); dialog = null
+        }
         LiveDialog.Clock -> ClockDialog(s, now, send, onDismiss = { dialog = null })
         LiveDialog.Shot -> ShotDialog(s, now, send, onDismiss = { dialog = null })
         LiveDialog.ClockMode -> ClockModeDialog(s, send, onDismiss = { dialog = null })
@@ -343,9 +351,10 @@ private fun SidePanel(ui: LiveUi, side: TeamSide, spec: LiveLayoutSpec, modifier
             }
         }
         Spacer(Modifier.weight(1f))
+        val canT = !s.finalized && s.timeout == null && s.timeoutsAvailable(side, s.clock.at(ui.now)) > 0
         WttButton(
             "T/O · $tos left", { ui.send(Command.StartTimeout(side)) }, Modifier.fillMaxWidth(),
-            enabled = !s.finalized && s.timeout == null && tos > 0, minHeight = LiveLayoutSpec.MIN_TOUCH.dp,
+            enabled = canT, minHeight = LiveLayoutSpec.MIN_TOUCH.dp,
         )
         Spacer(Modifier.height(4.dp))
     }
@@ -588,16 +597,31 @@ private fun TeamDialog(ui: LiveUi, side: TeamSide, onDismiss: () -> Unit) {
     val s = ui.s
     val t = s.team(side)
     val tos = s.timeoutsRemaining(side)
+    val shorts = s.shortTimeoutsRemaining(side)
+    val canTimeout = !s.finalized && s.timeout == null && s.timeoutsAvailable(side, s.clock.at(ui.now)) > 0
     WttDialog("${t.info.shortName} · ${t.info.name}", onDismiss) {
         Text("${t.score} PTS · ${s.teamFouls(side)} team fouls · $tos timeouts left" +
-            when (s.inBonus(side)) { PenaltyLevel.BONUS -> " · BONUS"; PenaltyLevel.DOUBLE_BONUS -> " · DOUBLE BONUS"; else -> "" },
+            when (s.inBonus(side)) { PenaltyLevel.BONUS -> " · BONUS"; PenaltyLevel.DOUBLE_BONUS -> " · 2× BONUS"; else -> "" },
             style = MaterialTheme.typography.titleMedium, color = Wtt.OffWhite, modifier = Modifier.padding(top = 8.dp))
         Spacer(Modifier.height(8.dp))
         WttButton("Call timeout · $tos left", { ui.send(Command.StartTimeout(side)); onDismiss() }, Modifier.fillMaxWidth(),
-            kind = ButtonKind.PRIMARY, icon = WttIcons.Timeout, enabled = !s.finalized && s.timeout == null && tos > 0, minHeight = 52.dp)
+            kind = ButtonKind.PRIMARY, icon = WttIcons.Timeout, enabled = canTimeout, minHeight = 52.dp)
+        if (s.rules.shortTimeoutsPerGame > 0 || s.rules.shortTimeoutsPerOvertime > 0) {
+            Spacer(Modifier.height(4.dp))
+            WttButton("30s timeout · $shorts left", { ui.send(Command.StartTimeout(side, short = true)); onDismiss() },
+                Modifier.fillMaxWidth(), kind = ButtonKind.SECONDARY, icon = WttIcons.Timeout,
+                enabled = canTimeout && s.timeoutsAvailable(side, s.clock.at(ui.now), short = true) > 0, minHeight = 52.dp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            WttButton("Free throws", { ui.open(LiveDialog.FreeThrows(side)) }, Modifier.weight(1f),
+                kind = ButtonKind.SECONDARY, enabled = !s.finalized, minHeight = 52.dp)
+            WttButton("Substitution", { ui.open(LiveDialog.Sub(side)) }, Modifier.weight(1f),
+                kind = ButtonKind.SECONDARY, enabled = !s.finalized, minHeight = 52.dp)
+        }
         SectionLabel("Players · tap for score, fouls, edit")
         JerseyGrid(s, side, onPick = { ui.open(LiveDialog.Player(it.id)) })
-        Text("Tip: long-press +1 / +2 / +3 to pick the scorer first.", style = MaterialTheme.typography.bodySmall,
+        Text("Tip: long-press +1 / +2 to pick the scorer first.", style = MaterialTheme.typography.bodySmall,
             color = Wtt.Muted, modifier = Modifier.padding(vertical = 8.dp))
     }
 }

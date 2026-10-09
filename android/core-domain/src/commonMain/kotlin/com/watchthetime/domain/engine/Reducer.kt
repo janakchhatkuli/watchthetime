@@ -65,6 +65,7 @@ object Reducer {
                         clock = s.clock.start(e.at),
                         shot = if (shotRuns) s.shot.start(e.at) else s.shot,
                         everStarted = true,
+                        breakSince = null,
                     )
                 }
             }
@@ -72,6 +73,7 @@ object Reducer {
             is ClockStopped -> s.copy(
                 clock = if (p.expired) Countdown(0) else s.clock.freeze(e.at),
                 shot = s.shot.freeze(e.at),
+                breakSince = if (p.expired) e.at else s.breakSince,
             )
 
             is ClockAdjusted -> s.copy(clock = s.clock.adjust(p.deltaMs, e.at, s.rules.lengthOf(s.period)))
@@ -87,12 +89,13 @@ object Reducer {
                     shotHeld = false,
                     timeout = null,
                     everStarted = s.everStarted || period > 1,
+                    breakSince = null,
                 )
             }
 
-            PeriodEnded -> s.copy(clock = Countdown(0), shot = s.shot.freeze(e.at))
+            PeriodEnded -> s.copy(clock = Countdown(0), shot = s.shot.freeze(e.at), breakSince = e.at)
 
-            GameFinalized -> s.copy(finalized = true, clock = s.clock.freeze(e.at), shot = s.shot.freeze(e.at), timeout = null)
+            GameFinalized -> s.copy(finalized = true, clock = s.clock.freeze(e.at), shot = s.shot.freeze(e.at), timeout = null, breakSince = null)
 
             GameReopened -> s.copy(finalized = false)
 
@@ -150,8 +153,8 @@ object Reducer {
             is TimeoutStarted -> {
                 val t = s.team(p.side)
                 s.copy(
-                    teams = s.teams + (p.side to t.copy(timeoutsTaken = t.timeoutsTaken + e.period)),
-                    timeout = ActiveTimeout(p.side, Countdown(p.lengthMs, e.at), e.id),
+                    teams = s.teams + (p.side to t.copy(timeoutsTaken = t.timeoutsTaken + TimeoutRecord(e.period, e.gameClockMs, p.short))),
+                    timeout = ActiveTimeout(p.side, Countdown(p.lengthMs, e.at), e.id, p.short),
                 )
             }
 

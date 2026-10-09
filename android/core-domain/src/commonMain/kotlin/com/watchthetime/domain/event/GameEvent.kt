@@ -169,7 +169,7 @@ data class Substitution(val side: TeamSide, val playerIn: String? = null, val pl
 // ---- Timeouts -----------------------------------------------------------------------------------
 
 @Serializable @SerialName("timeout_start")
-data class TimeoutStarted(val side: TeamSide, val lengthMs: Long) : EventPayload
+data class TimeoutStarted(val side: TeamSide, val lengthMs: Long, val short: Boolean = false) : EventPayload
 
 @Serializable @SerialName("timeout_end")
 data class TimeoutEnded(val side: TeamSide) : EventPayload

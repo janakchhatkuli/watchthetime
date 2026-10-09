@@ -41,7 +41,7 @@ sealed interface Command {
     @Serializable @SerialName("foul") data class AddFoul(val side: TeamSide, val playerId: String?, val type: FoulType = FoulType.PERSONAL) : Command
     @Serializable @SerialName("free_throws") data class AddFreeThrows(val side: TeamSide, val playerId: String?, val attempts: Int, val made: Int) : Command
     @Serializable @SerialName("substitution") data class AddSubstitution(val side: TeamSide, val playerIn: String? = null, val playerOut: String? = null) : Command
-    @Serializable @SerialName("timeout") data class StartTimeout(val side: TeamSide) : Command
+    @Serializable @SerialName("timeout") data class StartTimeout(val side: TeamSide, val short: Boolean = false) : Command
     @Serializable @SerialName("timeout_end") data object EndTimeout : Command
     @Serializable @SerialName("timeout_adjust") data class AdjustTimeouts(val side: TeamSide, val delta: Int) : Command
 

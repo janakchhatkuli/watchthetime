@@ -48,12 +48,32 @@ class FoulRulesTest {
     }
 
     @Test
-    fun fibaTechnicalPlusUnsportsmanlikeDisqualifies() {
+    fun fiba2026TechnicalPlusFlagrantDisqualifies() {
         val (s, _) = Fixtures.session(Rules.preset(RulePreset.FIBA))
         s.dispatch(foul(AWAY, "a11", FoulType.TECHNICAL))
         assertEquals(1, s.state.player("a11")!!.countedFouls(s.state.rules), "FIBA: T counts as a foul")
         assertEquals(1, s.state.teamFouls(AWAY))
-        assertTrue(s.dispatch(foul(AWAY, "a11", FoulType.UNSPORTSMANLIKE)).cues.any { it.type == CueType.FOUL_OUT })
+        assertTrue(s.dispatch(foul(AWAY, "a11", FoulType.FLAGRANT)).cues.any { it.type == CueType.FOUL_OUT })
+    }
+
+    @Test
+    fun fiba2026DisruptiveAndCategory2TechnicalsDoNotEject() {
+        val (s, _) = Fixtures.session(Rules.preset(RulePreset.FIBA))
+        s.dispatch(foul(AWAY, "a11", FoulType.TECHNICAL_2))
+        s.dispatch(foul(AWAY, "a11", FoulType.DISRUPTIVE))
+        s.dispatch(foul(AWAY, "a11", FoulType.TECHNICAL))
+        val p = s.state.player("a11")!!
+        assertFalse(p.disqualified(s.state.rules), "cat. 2 T + disruptive + one cat. 1 T: still playing (Interp. 36-27)")
+        assertEquals(3, p.countedFouls(s.state.rules), "...but all three count toward 5")
+        assertEquals(3, s.state.teamFouls(AWAY))
+        s.dispatch(foul(AWAY, "a11"))
+        assertTrue(s.dispatch(foul(AWAY, "a11")).cues.any { it.type == CueType.FOUL_OUT }, "5th foul of any kind")
+    }
+
+    @Test
+    fun fiba2026DisqualifyingFoulEjectsImmediately() {
+        val (s, _) = Fixtures.session(Rules.preset(RulePreset.FIBA))
+        assertTrue(s.dispatch(foul(HOME, "h7", FoulType.DISQUALIFYING)).cues.any { it.type == CueType.FOUL_OUT })
     }
 
     @Test

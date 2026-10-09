@@ -12,17 +12,24 @@ enum class TeamSide {
 }
 
 /**
- * Foul categories. PERSONAL is the default; the others are "flags" that are rendered as
- * visible badges on the player (T / F / U) in addition to being counted.
+ * Foul categories. How each one counts (foul-out, team fouls, free throws, ejection) is set
+ * per rule set in [com.watchthetime.domain.rules.FoulRule]; the labels there are the
+ * federation's own names (e.g. FIBA "Technical (cat. 2)", NCAA "Class B technical").
  */
 @Serializable
 enum class FoulType(val code: String, val label: String) {
     PERSONAL("P", "Personal"),
     TECHNICAL("T", "Technical"),
     FLAGRANT("F", "Flagrant"),
-    UNSPORTSMANLIKE("U", "Unsportsmanlike");
+    UNSPORTSMANLIKE("U", "Unsportsmanlike"),
+    OFFENSIVE("O", "Offensive"),
+    TECHNICAL_2("T2", "Technical (other)"),
+    FLAGRANT_2("F2", "Flagrant 2"),
+    DISRUPTIVE("D", "Disruptive"),
+    DISQUALIFYING("DQ", "Disqualifying");
 
-    val isFlag: Boolean get() = this != PERSONAL
+    /** Shown as a badge on the player (everything except ordinary personal/offensive fouls). */
+    val isFlag: Boolean get() = this != PERSONAL && this != OFFENSIVE
 }
 
 @Serializable

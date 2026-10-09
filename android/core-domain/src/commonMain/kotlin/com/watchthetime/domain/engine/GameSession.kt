@@ -223,13 +223,14 @@ class GameSession(
 
             is Command.AddScore -> {
                 if (s.finalized) return "Game is final"
-                if (cmd.points !in 1..3) return "Invalid points"
+                if (cmd.points !in s.rules.scoringPoints) return "Invalid points"
                 val stopped = autoStop(StopTrigger.SCORE, tx)
                 tx.append(Score(cmd.side, cmd.points, cmd.playerId, cmd.shot))
                 val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
                 val ft = if (cmd.shot == ShotType.FREE_THROW) " FT" else ""
                 cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points}$ft ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
                 if (stopped) cues += autoStopCue()
+                checkWin(tx, cues)
             }
 
             is Command.AddFreeThrows -> {
@@ -243,6 +244,7 @@ class GameSession(
                 cues += Cue(CueType.FREE_THROWS, cmd.side, cmd.playerId,
                     "FT ${cmd.made}/${cmd.attempts} ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
                 if (stopped) cues += autoStopCue()
+                checkWin(tx, cues)
             }
 
             is Command.AddSubstitution -> {
@@ -273,13 +275,19 @@ class GameSession(
             is Command.StartTimeout -> {
                 if (s.finalized) return "Game is final"
                 if (s.timeout != null) return "Timeout already running"
-                if (s.timeoutsRemaining(cmd.side) <= 0) return "${s.team(cmd.side).info.shortName}: no timeouts left"
+                val name = s.team(cmd.side).info.shortName
+                val kind = if (cmd.short) "short timeouts" else "timeouts"
+                val left = if (cmd.short) s.shortTimeoutsRemaining(cmd.side) else s.timeoutsRemaining(cmd.side)
+                if (left <= 0) return "$name: no $kind left"
+                if (s.timeoutsAvailable(cmd.side, s.clock.at(now), cmd.short) <= 0) return "$name: late-game timeout limit reached"
                 // A timeout always stops the clock, in every mode.
                 if (autoStop(StopTrigger.TIMEOUT, tx, force = true)) {
                     cues += Cue(CueType.CLOCK_STOP, text = "STOP")
                 }
-                tx.append(TimeoutStarted(cmd.side, s.rules.timeoutLengthMs))
-                cues += Cue(CueType.TIMEOUT_START, cmd.side, text = "TIMEOUT ${s.team(cmd.side).info.shortName} · ${state.timeoutsRemaining(cmd.side)} LEFT")
+                val len = if (cmd.short) s.rules.shortTimeoutLengthMs else s.rules.timeoutLengthMs
+                tx.append(TimeoutStarted(cmd.side, len, cmd.short))
+                val after = if (cmd.short) state.shortTimeoutsRemaining(cmd.side) else state.timeoutsRemaining(cmd.side)
+                cues += Cue(CueType.TIMEOUT_START, cmd.side, text = "${if (cmd.short) "30s " else ""}TIMEOUT $name · $after LEFT")
             }
 
             Command.EndTimeout -> {
@@ -461,13 +469,28 @@ class GameSession(
         }
 
         state.timeout?.let { t ->
-            if (t.countdown.at(now) == 0L) {
+            val left = t.countdown.at(now)
+            if (left == 0L) {
                 written += appendSystem(TimeoutEnded(t.side), now)
                 cues += Cue(CueType.TIMEOUT_END, t.side, text = "TIMEOUT OVER")
+            } else if (s.rules.timeoutWarningMs > 0 && left <= s.rules.timeoutWarningMs && timeoutWarned != t.eventId) {
+                timeoutWarned = t.eventId
+                cues += Cue(CueType.TIMEOUT_WARNING, t.side, text = "TIMEOUT ENDS IN ${ClockFormat.countdown(left).replace("!", "")}")
+            }
+        }
+
+        state.breakSince?.let { since ->
+            val left = state.intervalRemaining(now)
+            if (left == 0L && intervalBuzzed != since) {
+                intervalBuzzed = since
+                cues += Cue(CueType.INTERVAL_END, text = "INTERVAL OVER")
             }
         }
         return Outcome(written, cues.sortedByDescending { it.type.priority })
     }
+
+    private var timeoutWarned: String? = null
+    private var intervalBuzzed: Stamp? = state.breakSince?.takeIf { state.intervalRemaining(time.now()) == 0L }
 
     /** Milliseconds until something in [tick] needs to happen, or null if nothing is pending. */
     fun millisToNextDeadline(): Long? {
@@ -480,7 +503,14 @@ class GameSession(
             if (lastMinuteArmed && rem > s.rules.lastMinuteWarningMs) candidates += rem - s.rules.lastMinuteWarningMs
             if (s.rules.shotClockEnabled && s.shot.running && !s.shotHeld && shotBuzzedFor != s.shot) candidates += s.shot.at(now)
         }
-        s.timeout?.let { candidates += it.countdown.at(now) }
+        s.timeout?.let {
+            val left = it.countdown.at(now)
+            candidates += left
+            if (s.rules.timeoutWarningMs > 0 && timeoutWarned != it.eventId && left > s.rules.timeoutWarningMs) {
+                candidates += left - s.rules.timeoutWarningMs
+            }
+        }
+        if (s.breakSince != null && intervalBuzzed != s.breakSince) s.intervalRemaining(now)?.let { candidates += it }
         return candidates.minOrNull()?.coerceAtLeast(0)
     }
 
@@ -547,6 +577,20 @@ class GameSession(
     }
 
     private fun stopSuffix(stopped: Boolean) = if (stopped) " · CLOCK STOPPED" else ""
+
+    /**
+     * 3x3 sudden death: reaching the target score in regulation, or scoring the overtime
+     * points, ends the game at once (clock stops, game final, buzzer) in the same transaction
+     * as the score, so undoing the score reopens the game.
+     */
+    private fun checkWin(tx: Tx, cues: MutableList<Cue>) {
+        val w = state.winner() ?: return
+        if (state.clock.running) tx.append(ClockStopped())
+        state.timeout?.let { tx.append(TimeoutEnded(it.side)) }
+        tx.append(GameFinalized)
+        val t = state.team(w).info.shortName
+        cues += Cue(CueType.GAME_FINAL, w, text = "$t WINS ${state.team(w).score}–${state.team(w.other).score}")
+    }
 
     /** Added after the event's own cue (same priority, stable sort), so the event's sound plays and the banner names it. */
     private fun autoStopCue() = Cue(CueType.CLOCK_STOP, text = "CLOCK STOPPED")

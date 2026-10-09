@@ -184,12 +184,12 @@ private fun PayloadEditor(s: GameState, d: PayloadDraft) {
         "SCORE" -> {
             SectionLabel("Points")
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (pts in 1..3) WttChip("+$pts", d.points == pts, { d.points = pts }, Modifier.weight(1f))
+                for (pts in s.rules.scoringPoints) WttChip("+$pts", d.points == pts, { d.points = pts }, Modifier.weight(1f))
             }
         }
         "FOUL" -> {
             SectionLabel("Foul type")
-            FoulTypeChips(d.foulType) { d.foulType = it }
+            FoulTypeChips(d.foulType, { d.foulType = it }, s.rules.foulTypes)
         }
     }
     if (d.kind != "TIMEOUT") {

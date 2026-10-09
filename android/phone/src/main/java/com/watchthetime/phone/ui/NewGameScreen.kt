@@ -80,7 +80,7 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
             home.info.shortName == away.info.shortName -> "Short names must differ"
             else -> null
         }
-        2 -> rosterProblem(home.players)?.let { "HOME: $it" } ?: rosterProblem(away.players)?.let { "AWAY: $it" }
+        2 -> rosterProblem(home.players, rules)?.let { "HOME: $it" } ?: rosterProblem(away.players, rules)?.let { "AWAY: $it" }
         else -> null
     }
 

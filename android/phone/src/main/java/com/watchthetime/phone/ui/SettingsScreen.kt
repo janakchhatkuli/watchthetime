@@ -33,7 +33,7 @@ import com.watchthetime.brand.WttChip
 import com.watchthetime.brand.WttIconButton
 import com.watchthetime.brand.WttIcons
 import com.watchthetime.domain.engine.CueType
-import com.watchthetime.domain.rules.RulePreset
+import com.watchthetime.domain.rules.Rules
 import com.watchthetime.domain.settings.AppSettings
 import com.watchthetime.domain.settings.FeedbackMode
 import com.watchthetime.feedback.CueCatalog
@@ -93,7 +93,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Text("Default rules for new games", style = MaterialTheme.typography.bodyLarge, color = Wtt.OffWhite)
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (p in RulePreset.entries.filter { it != RulePreset.CUSTOM }) {
+                for (p in Rules.selectablePresets) {
                     WttChip(p.label, st.game.defaultPreset == p, { update { it.copy(game = it.game.copy(defaultPreset = p)) } })
                 }
             }

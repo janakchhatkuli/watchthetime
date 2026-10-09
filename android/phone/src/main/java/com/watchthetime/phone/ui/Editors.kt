@@ -71,7 +71,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
 
     SectionLabel("Preset")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (p in RulePreset.entries.filter { it != RulePreset.CUSTOM }) {
+        for (p in Rules.selectablePresets) {
             WttChip(p.label, rules.preset == p, { onChange(Rules.preset(p)) })
         }
         if (rules.preset == RulePreset.CUSTOM) WttChip("Custom", true, {})
@@ -168,13 +168,17 @@ fun TeamInfoEditor(info: TeamInfo, onChange: (TeamInfo) -> Unit) {
 }
 
 /** Validation message for a roster, or null when valid. */
-fun rosterProblem(players: List<SavedPlayer>): String? {
+fun rosterProblem(players: List<SavedPlayer>, rules: Rules? = null): String? {
     for (p in players) {
         val n = p.number.trim()
         if (n.isEmpty() || n.length > 2 || !n.all { it.isDigit() }) return "Jersey numbers must be 0–99 or 00"
     }
     val dup = players.groupBy { it.number.trim() }.filter { it.value.size > 1 }.keys.firstOrNull()
-    return dup?.let { "#$it is used twice" }
+    if (dup != null) return "#$dup is used twice"
+    if (rules?.isThreeByThree == true && players.isNotEmpty() && players.size !in 3..4) {
+        return "3x3 needs 3 or 4 players (or none at all)"
+    }
+    return null
 }
 
 /** Editable roster list (jersey + name rows). */

@@ -85,6 +85,12 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
         }
     }
     if (rules.isThreeByThree) {
+        val pMin = (rules.periodLengthMs / Rules.MIN).toInt()
+        Stepper("Regulation length", "$pMin min",
+            { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, -1) * Rules.MIN)) },
+            { set(rules.copy(periodLengthMs = cycle(Rules.PERIOD_LENGTH_CHOICES_MIN, pMin, 1) * Rules.MIN)) })
+        Text("Overtime is untimed: first team to ${rules.overtimeWinPoints} wins.",
+            style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
         Stepper("Game to", "${rules.targetScore}",
             { set(rules.copy(targetScore = (rules.targetScore - 1).coerceAtLeast(1))) },
             { set(rules.copy(targetScore = rules.targetScore + 1)) })
@@ -94,7 +100,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
         SectionLabel("Scoring")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WttChip("1 & 2", !rules.arcScoring, { set(rules.copy(arcScoring = false)) })
-            WttChip("2 & 3 (arc)", rules.arcScoring, { set(rules.copy(arcScoring = true)) }, selectedColor = Wtt.Amber)
+            WttChip("2 & 3 (arc)", rules.arcScoring, { set(rules.copy(arcScoring = true)) })
         }
         Text("Free throws are always 1 point.", style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
     } else {

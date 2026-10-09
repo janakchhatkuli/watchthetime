@@ -226,6 +226,8 @@ class GameSession(
                 if (cmd.points !in s.rules.scoringPoints) return "Invalid points"
                 val stopped = autoStop(StopTrigger.SCORE, tx)
                 tx.append(Score(cmd.side, cmd.points, cmd.playerId, cmd.shot))
+                // A made basket always resets the shot clock, in every format.
+                if (s.rules.shotClockEnabled) tx.append(ShotClockReset(s.rules.shotClockFullMs))
                 val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
                 val ft = if (cmd.shot == ShotType.FREE_THROW) " FT" else ""
                 cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points}$ft ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
@@ -240,6 +242,8 @@ class GameSession(
                 if (cmd.playerId != null && s.player(cmd.playerId)?.info?.side != cmd.side) return "Player is not on that team"
                 val stopped = autoStop(StopTrigger.FREE_THROWS, tx)
                 tx.append(FreeThrows(cmd.side, cmd.playerId, cmd.attempts, cmd.made))
+                // Made free throws are a score: reset the shot clock (misses leave it alone).
+                if (cmd.made > 0 && s.rules.shotClockEnabled) tx.append(ShotClockReset(s.rules.shotClockFullMs))
                 val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
                 cues += Cue(CueType.FREE_THROWS, cmd.side, cmd.playerId,
                     "FT ${cmd.made}/${cmd.attempts} ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))

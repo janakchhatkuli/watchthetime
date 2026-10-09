@@ -20,7 +20,7 @@ class EditUndoRecomputeTest {
     @Test
     fun editingAScoreRecomputesTotalsAndBoxScore() {
         val (s, _) = Fixtures.session()
-        val id = s.dispatch(Command.AddScore(HOME, 2, "h23")).changed.single().id
+        val id = s.dispatch(Command.AddScore(HOME, 2, "h23")).changed.first { it.payload is Score }.id
         s.dispatch(Command.AddScore(HOME, 3, "h4"))
         assertEquals(5, s.state.team(HOME).score)
         val edited = s.dispatch(Command.EditEvent(id, Score(AWAY, 3, "a11")))
@@ -39,7 +39,7 @@ class EditUndoRecomputeTest {
     @Test
     fun assignScorerAfterTheFact() {
         val (s, _) = Fixtures.session()
-        val id = s.dispatch(Command.AddScore(AWAY, 2)).changed.single().id
+        val id = s.dispatch(Command.AddScore(AWAY, 2)).changed.first { it.payload is Score }.id
         assertEquals(2, BoxScoreBuilder.build(s.state).away.unassignedPoints)
         s.dispatch(Command.AssignPlayer(id, "a0"))
         assertEquals(2, s.state.player("a0")!!.points)
@@ -96,7 +96,7 @@ class EditUndoRecomputeTest {
     @Test
     fun undoOfAnEditRestoresPreviousVersionWithHigherRevision() {
         val (s, _) = Fixtures.session()
-        val id = s.dispatch(Command.AddScore(HOME, 2)).changed.single().id
+        val id = s.dispatch(Command.AddScore(HOME, 2)).changed.first { it.payload is Score }.id
         s.dispatch(Command.EditEvent(id, Score(HOME, 3)))
         assertEquals(3, s.state.team(HOME).score)
         val undone = s.undo().changed.single()
@@ -156,7 +156,7 @@ class EditUndoRecomputeTest {
     @Test
     fun offlineEditsFromBothDevicesConverge() {
         val (watch, _) = Fixtures.session()
-        val id = watch.dispatch(Command.AddScore(HOME, 2)).changed.single().id
+        val id = watch.dispatch(Command.AddScore(HOME, 2)).changed.first { it.payload is Score }.id
         val phone = GameSession("g1", watch.allEvents, FakeTime(), "phone")
 
         // Disconnected: phone edits the score, watch keeps scoring.

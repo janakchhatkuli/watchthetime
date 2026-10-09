@@ -66,6 +66,31 @@ class FreeThrowsAndSubsTest {
     }
 
     @Test
+    fun scoreResetsShotClockInEveryFormat() {
+        val (s, t) = Fixtures.session()
+        s.dispatch(Command.StartClock); t.advance(5_000); s.tick()
+        assertTrue(s.state.shot.at(t.now()) < 24_000, "shot clock has run down")
+        s.dispatch(Command.AddScore(HOME, 2, "h4"))
+        assertEquals(24_000, s.state.shot.baseMs, "made basket resets the shot clock")
+        assertTrue(s.state.shot.running || !s.state.clock.running, "shot clock is live again (or the game clock stopped)")
+
+        s.dispatch(Command.StartClock); t.advance(3_000); s.tick()
+        s.dispatch(Command.AddScore(AWAY, 3, "a11", ShotType.ARC))
+        assertEquals(24_000, s.state.shot.baseMs, "3-pointer too")
+
+        // Free-throw set with a make resets; all misses do not.
+        s.dispatch(Command.StartClock); t.advance(2_000); s.tick()
+        s.dispatch(Command.AddFreeThrows(HOME, "h4", attempts = 2, made = 1))
+        assertEquals(24_000, s.state.shot.baseMs, "made free throw resets")
+        s.dispatch(Command.StartClock); t.advance(2_000); s.tick()
+        val remaining = s.state.shot.at(t.now())
+        s.dispatch(Command.AddFreeThrows(AWAY, "a0", attempts = 2, made = 0))
+        assertTrue(s.state.shot.at(t.now()) < 24_000, "all-missed free throws leave the shot clock alone")
+        assertTrue(s.state.shot.at(t.now()) <= remaining, "no reset on a miss")
+        assertEquals(remaining, s.state.shot.at(t.now()), "unchanged after 0/2")
+    }
+
+    @Test
     fun substitutionIsLoggedAndValidated() {
         val (s, _) = Fixtures.session()
         assertTrue(s.dispatch(Command.AddSubstitution(HOME, "h4", "h7")).ok)

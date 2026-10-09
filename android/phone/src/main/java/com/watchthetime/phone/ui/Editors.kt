@@ -25,6 +25,8 @@ import com.watchthetime.brand.WttIconButton
 import com.watchthetime.brand.WttIcons
 import com.watchthetime.data.SavedPlayer
 import com.watchthetime.domain.model.TeamInfo
+import com.watchthetime.domain.rules.ClockMode
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.PeriodFormat
 import com.watchthetime.domain.rules.RulePreset
 import com.watchthetime.domain.rules.Rules
@@ -35,6 +37,30 @@ private fun cycle(list: List<Int>, cur: Int, dir: Int): Int {
     val exact = list.getOrNull(i) == cur
     val next = if (dir > 0) (if (exact) i + 1 else i) else i - 1
     return list[next.coerceIn(0, list.lastIndex)]
+}
+
+/** Clock mode picker (stopping / running) with the per-mode late-game option. */
+@Composable
+fun ClockPolicyEditor(policy: ClockPolicy, rules: Rules, onChange: (ClockPolicy) -> Unit) {
+    SectionLabel("Clock mode")
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (m in ClockMode.entries) {
+            WttChip(m.label, policy.mode == m, { onChange(policy.copy(mode = m)) }, Modifier.weight(1f))
+        }
+    }
+    Text(policy.mode.detail, style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 6.dp))
+    when (policy.mode) {
+        ClockMode.STOPPING -> ToggleRow(
+            "Scores stop the clock only late in the game", policy.scoresStopOnlyLate,
+            { onChange(policy.copy(scoresStopOnlyLate = it)) },
+            "Official style: ${rules.lateWindowText()}. Fouls, timeouts, free throws and substitutions always stop it.",
+        )
+        ClockMode.RUNNING -> ToggleRow(
+            "Stop the clock late in the game", policy.runningStopsLate,
+            { onChange(policy.copy(runningStopsLate = it)) },
+            "Behaves like stopping time during the ${rules.lateWindowText()}.",
+        )
+    }
 }
 
 /** Full rules editor. Any manual change marks the rules as CUSTOM. */

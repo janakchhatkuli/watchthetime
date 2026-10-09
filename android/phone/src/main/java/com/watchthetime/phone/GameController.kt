@@ -13,6 +13,7 @@ import com.watchthetime.domain.event.GameEvent
 import com.watchthetime.domain.event.Score
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 import com.watchthetime.domain.settings.AppSettings
 import com.watchthetime.domain.state.GameState
@@ -111,11 +112,18 @@ class GameController(
     }
 
     /** Creates and opens a new game; returns its id. */
-    fun create(rules: Rules, home: TeamInfo, away: TeamInfo, roster: List<PlayerInfo>, title: String): String {
+    fun create(
+        rules: Rules,
+        home: TeamInfo,
+        away: TeamInfo,
+        roster: List<PlayerInfo>,
+        title: String,
+        clockPolicy: ClockPolicy = ClockPolicy.NEW_GAME,
+    ): String {
         close()
         val id = randomId()
         val s = GameSession(id, emptyList(), time, ORIGIN, shotExpiryStopsGame = settings.value.game.shotExpiryStopsGame)
-        val out = s.create(rules, home, away, roster, title)
+        val out = s.create(rules, home, away, roster, title, clockPolicy)
         session = s
         persist(out)
         publish()

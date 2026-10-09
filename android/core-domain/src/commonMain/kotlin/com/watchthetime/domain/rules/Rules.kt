@@ -85,6 +85,20 @@ data class Rules(
         return w > 0 && clockMs <= w
     }
 
+    /** Plain-language description of the late-game window, for settings screens. */
+    fun lateWindowText(): String {
+        fun fmt(ms: Long): String {
+            val s = ms / 1000
+            return if (ms % 1000 != 0L) "${s / 60}:${(s % 60).toString().padStart(2, '0')}.${(ms % 1000) / 100}"
+            else "${s / 60}:${(s % 60).toString().padStart(2, '0')}"
+        }
+        val last = if (format == PeriodFormat.HALVES) "the 2nd half" else "the last period"
+        val parts = mutableListOf<String>()
+        if (scoreStopFinalMs > 0) parts += "last ${fmt(scoreStopFinalMs)} of $last and overtime"
+        if (scoreStopOtherMs > 0) parts += "last ${fmt(scoreStopOtherMs)} of other periods"
+        return if (parts.isEmpty()) "no late-game window in these rules" else parts.joinToString("; ")
+    }
+
     fun isOvertime(period: Int) = period > regulationPeriods
     fun lengthOf(period: Int) = if (isOvertime(period)) overtimeLengthMs else periodLengthMs
 

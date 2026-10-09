@@ -38,6 +38,7 @@ import com.watchthetime.data.SavedTeam
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
 import com.watchthetime.domain.model.TeamSide
+import com.watchthetime.domain.rules.ClockPolicy
 import com.watchthetime.domain.rules.Rules
 import com.watchthetime.phone.container
 import kotlinx.coroutines.launch
@@ -60,6 +61,7 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
     var step by remember { mutableIntStateOf(0) }
     var rules by remember { mutableStateOf(Rules.preset(settings.game.defaultPreset)) }
     var rulesTouched by remember { mutableStateOf(false) }
+    var policy by remember { mutableStateOf(ClockPolicy.NEW_GAME) }
     var title by remember { mutableStateOf("") }
     var saveTeams by remember { mutableStateOf(true) }
     val home = remember { SideDraft(TeamSide.HOME) }
@@ -90,7 +92,7 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                 c.teams.save(SavedTeam(d.savedId ?: UUID.randomUUID().toString(), d.info, d.players))
             }
         }
-        val id = c.controller.create(rules, home.info, away.info, roster, title.trim())
+        val id = c.controller.create(rules, home.info, away.info, roster, title.trim(), policy)
         onCreated(id)
     }
 
@@ -110,6 +112,7 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                 0 -> {
                     Spacer(Modifier.height(12.dp))
                     WttTextField(title, { title = it.take(60) }, "Title (optional)", Modifier.fillMaxWidth())
+                    ClockPolicyEditor(policy, rules) { policy = it }
                     RulesEditor(rules, { rules = it; rulesTouched = true })
                 }
                 1 -> for ((side, d) in listOf(TeamSide.HOME to home, TeamSide.AWAY to away)) {

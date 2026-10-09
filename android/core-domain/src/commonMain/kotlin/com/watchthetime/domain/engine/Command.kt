@@ -1,6 +1,7 @@
 package com.watchthetime.domain.engine
 
 import com.watchthetime.domain.event.EventPayload
+import com.watchthetime.domain.event.ShotType
 import com.watchthetime.domain.model.FoulType
 import com.watchthetime.domain.model.PlayerInfo
 import com.watchthetime.domain.model.TeamInfo
@@ -36,8 +37,10 @@ sealed interface Command {
     @Serializable @SerialName("reopen") data object ReopenGame : Command
 
     // Score / fouls / timeouts
-    @Serializable @SerialName("score") data class AddScore(val side: TeamSide, val points: Int, val playerId: String? = null) : Command
+    @Serializable @SerialName("score") data class AddScore(val side: TeamSide, val points: Int, val playerId: String? = null, val shot: ShotType? = null) : Command
     @Serializable @SerialName("foul") data class AddFoul(val side: TeamSide, val playerId: String?, val type: FoulType = FoulType.PERSONAL) : Command
+    @Serializable @SerialName("free_throws") data class AddFreeThrows(val side: TeamSide, val playerId: String?, val attempts: Int, val made: Int) : Command
+    @Serializable @SerialName("substitution") data class AddSubstitution(val side: TeamSide, val playerIn: String? = null, val playerOut: String? = null) : Command
     @Serializable @SerialName("timeout") data class StartTimeout(val side: TeamSide) : Command
     @Serializable @SerialName("timeout_end") data object EndTimeout : Command
     @Serializable @SerialName("timeout_adjust") data class AdjustTimeouts(val side: TeamSide, val delta: Int) : Command

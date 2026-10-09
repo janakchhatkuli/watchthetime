@@ -32,12 +32,22 @@ object EventText {
             is ShotClockReset -> "Shot clock ${p.valueMs / 1000}"
             is ShotClockHold -> if (p.held) "Shot clock hold" else "Shot clock run"
             is ShotClockAdjusted -> "Shot clock ${if (p.deltaMs >= 0) "+" else "−"}${kotlin.math.abs(p.deltaMs) / 1000}s"
-            is Score -> "+${p.points} ${team(p.side)}${who(p.playerId)?.let { " $it" } ?: ""}"
+            is Score -> "+${p.points}${shotText(p)} ${team(p.side)}${who(p.playerId)?.let { " $it" } ?: ""}"
+            is FreeThrows -> "Free throws ${p.made}/${p.attempts} ${team(p.side)}${who(p.playerId)?.let { " $it" } ?: ""}"
+            is Substitution -> "Substitution ${team(p.side)}" +
+                (who(p.playerIn)?.let { " in $it" } ?: "") + (who(p.playerOut)?.let { " out $it" } ?: "")
             is Foul -> "${p.type.label} foul ${team(p.side)} ${who(p.playerId) ?: "bench/team"}"
             is TimeoutStarted -> "Timeout ${team(p.side)}"
             is TimeoutEnded -> "Timeout over ${team(p.side)}"
             is TimeoutsAdjusted -> "Timeouts ${team(p.side)} ${if (p.delta >= 0) "+" else ""}${p.delta}"
         }
+    }
+
+    /** " FT", " 3PT", " 2PT" (3x3 arc) or "" for an ordinary field goal. */
+    fun shotText(p: Score): String = when (p.shotOf()) {
+        ShotType.FREE_THROW -> " FT"
+        ShotType.ARC -> " ${p.points}PT"
+        ShotType.FIELD_GOAL -> ""
     }
 
     /** "Q2 4:31" prefix. */

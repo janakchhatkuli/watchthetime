@@ -110,21 +110,32 @@ object Reducer {
 
             is Score -> {
                 val pts = p.points.coerceIn(1, 3)
-                val t = s.team(p.side)
-                val team = t.copy(
-                    score = t.score + pts,
-                    scoreByPeriod = t.scoreByPeriod + (e.period to (t.scoreByPeriod[e.period] ?: 0) + pts),
-                )
-                val players = s.player(p.playerId)?.takeIf { it.info.side == p.side }?.let { pl ->
+                val ft = p.shotOf() == ShotType.FREE_THROW
+                val s1 = addPoints(s, p.side, e.period, pts)
+                val players = s1.player(p.playerId)?.takeIf { it.info.side == p.side }?.let { pl ->
+                    val base = if (ft) pl.copy(ftMade = pl.ftMade + 1, ftAttempted = pl.ftAttempted + 1) else pl
                     val updated = when (pts) {
-                        1 -> pl.copy(made1 = pl.made1 + 1)
-                        2 -> pl.copy(made2 = pl.made2 + 1)
-                        else -> pl.copy(made3 = pl.made3 + 1)
+                        1 -> base.copy(made1 = base.made1 + 1)
+                        2 -> base.copy(made2 = base.made2 + 1)
+                        else -> base.copy(made3 = base.made3 + 1)
                     }
-                    s.players + (pl.id to updated)
-                } ?: s.players
-                s.copy(teams = s.teams + (p.side to team), players = players)
+                    s1.players + (pl.id to updated)
+                } ?: s1.players
+                s1.copy(players = players)
             }
+
+            is FreeThrows -> {
+                val made = p.made.coerceIn(0, p.attempts.coerceAtLeast(0))
+                val s1 = addPoints(s, p.side, e.period, made)
+                val players = s1.player(p.playerId)?.takeIf { it.info.side == p.side }?.let { pl ->
+                    s1.players + (pl.id to pl.copy(
+                        made1 = pl.made1 + made, ftMade = pl.ftMade + made, ftAttempted = pl.ftAttempted + p.attempts.coerceAtLeast(0),
+                    ))
+                } ?: s1.players
+                s1.copy(players = players)
+            }
+
+            is Substitution -> s
 
             is Foul -> {
                 val validPlayer = s.player(p.playerId)?.takeIf { it.info.side == p.side }
@@ -152,5 +163,16 @@ object Reducer {
             }
         }
         return next.copy(appliedEvents = s.appliedEvents + 1)
+    }
+
+    private fun addPoints(s: GameState, side: TeamSide, period: Int, pts: Int): GameState {
+        if (pts == 0) return s
+        val t = s.team(side)
+        return s.copy(
+            teams = s.teams + (side to t.copy(
+                score = t.score + pts,
+                scoreByPeriod = t.scoreByPeriod + (period to (t.scoreByPeriod[period] ?: 0) + pts),
+            )),
+        )
     }
 }

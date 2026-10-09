@@ -116,9 +116,15 @@ object CsvExport {
             val side = when (val p = e.payload) {
                 is Score -> p.side.name
                 is com.watchthetime.domain.event.Foul -> p.side.name
+                is com.watchthetime.domain.event.FreeThrows -> p.side.name
+                is com.watchthetime.domain.event.Substitution -> p.side.name
                 else -> ""
             }
-            val pts = (e.payload as? Score)?.points ?: ""
+            val pts = when (val p = e.payload) {
+                is Score -> p.points
+                is com.watchthetime.domain.event.FreeThrows -> p.made
+                else -> ""
+            }
             appendLine(
                 row(
                     e.seq, ClockFormat.periodShort(e.period, s.rules), ClockFormat.plain(e.gameClockMs, true),

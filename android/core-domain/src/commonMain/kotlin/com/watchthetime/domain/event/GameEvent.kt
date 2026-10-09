@@ -136,11 +136,35 @@ data class ShotClockAdjusted(val deltaMs: Long) : EventPayload
 
 // ---- Score & fouls ------------------------------------------------------------------------------
 
+/**
+ * What kind of basket a score was. Null in games recorded before this existed: then it is
+ * inferred from the points (see [Score.shotOf]).
+ */
+@Serializable
+enum class ShotType(val label: String) {
+    FREE_THROW("FT"),
+    /** 2-point goal in 5-on-5, 1-point goal (inside the arc) in 3x3. */
+    FIELD_GOAL("FG"),
+    /** 3-pointer in 5-on-5, 2-pointer (behind the arc) in 3x3. */
+    ARC("ARC"),
+}
+
 @Serializable @SerialName("score")
-data class Score(val side: TeamSide, val points: Int, val playerId: String? = null) : EventPayload
+data class Score(val side: TeamSide, val points: Int, val playerId: String? = null, val shot: ShotType? = null) : EventPayload {
+    /** [shot], or the 5-on-5 inference for old events: 1 = FT, 2 = FG, 3 = three. */
+    fun shotOf(): ShotType = shot ?: when (points) { 1 -> ShotType.FREE_THROW; 3 -> ShotType.ARC; else -> ShotType.FIELD_GOAL }
+}
 
 @Serializable @SerialName("foul")
 data class Foul(val side: TeamSide, val playerId: String?, val type: FoulType = FoulType.PERSONAL) : EventPayload
+
+/** A free-throw set: [made] of [attempts] went in (each made one counts 1 point). */
+@Serializable @SerialName("free_throws")
+data class FreeThrows(val side: TeamSide, val playerId: String?, val attempts: Int, val made: Int) : EventPayload
+
+/** Substitution (log entry; also pauses the clock in stopping time). */
+@Serializable @SerialName("substitution")
+data class Substitution(val side: TeamSide, val playerIn: String? = null, val playerOut: String? = null) : EventPayload
 
 // ---- Timeouts -----------------------------------------------------------------------------------
 
@@ -165,7 +189,8 @@ val EventPayload.kind: String
         ClockStarted, is ClockStopped, is ClockAdjusted, is ClockSet -> "CLOCK"
         is PeriodSet, PeriodEnded, GameFinalized, GameReopened -> "PERIOD"
         is ShotClockReset, is ShotClockHold, is ShotClockAdjusted -> "SHOT"
-        is Score -> "SCORE"
+        is Score, is FreeThrows -> "SCORE"
         is Foul -> "FOUL"
+        is Substitution -> "SUB"
         is TimeoutStarted, is TimeoutEnded, is TimeoutsAdjusted -> "TIMEOUT"
     }

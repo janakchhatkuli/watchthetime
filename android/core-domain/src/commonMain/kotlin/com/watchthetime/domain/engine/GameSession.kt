@@ -225,9 +225,37 @@ class GameSession(
                 if (s.finalized) return "Game is final"
                 if (cmd.points !in 1..3) return "Invalid points"
                 val stopped = autoStop(StopTrigger.SCORE, tx)
-                tx.append(Score(cmd.side, cmd.points, cmd.playerId))
+                tx.append(Score(cmd.side, cmd.points, cmd.playerId, cmd.shot))
                 val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
-                cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points} ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
+                val ft = if (cmd.shot == ShotType.FREE_THROW) " FT" else ""
+                cues += CueDiff.forScore(cmd.points, cmd.side, "+${cmd.points}$ft ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
+                if (stopped) cues += autoStopCue()
+            }
+
+            is Command.AddFreeThrows -> {
+                if (s.finalized) return "Game is final"
+                if (cmd.attempts !in 1..5) return "Free throws: 1 to 5 attempts"
+                if (cmd.made !in 0..cmd.attempts) return "Made must be 0 to ${cmd.attempts}"
+                if (cmd.playerId != null && s.player(cmd.playerId)?.info?.side != cmd.side) return "Player is not on that team"
+                val stopped = autoStop(StopTrigger.FREE_THROWS, tx)
+                tx.append(FreeThrows(cmd.side, cmd.playerId, cmd.attempts, cmd.made))
+                val who = s.player(cmd.playerId)?.let { " #${it.info.number}" } ?: ""
+                cues += Cue(CueType.FREE_THROWS, cmd.side, cmd.playerId,
+                    "FT ${cmd.made}/${cmd.attempts} ${s.team(cmd.side).info.shortName}$who" + stopSuffix(stopped))
+                if (stopped) cues += autoStopCue()
+            }
+
+            is Command.AddSubstitution -> {
+                if (s.finalized) return "Game is final"
+                for (id in listOfNotNull(cmd.playerIn, cmd.playerOut)) {
+                    if (s.player(id)?.info?.side != cmd.side) return "Player is not on that team"
+                }
+                if (cmd.playerIn != null && cmd.playerIn == cmd.playerOut) return "Same player in and out"
+                val stopped = autoStop(StopTrigger.SUBSTITUTION, tx)
+                tx.append(Substitution(cmd.side, cmd.playerIn, cmd.playerOut))
+                val inTxt = s.player(cmd.playerIn)?.let { " IN #${it.info.number}" } ?: ""
+                val outTxt = s.player(cmd.playerOut)?.let { " OUT #${it.info.number}" } ?: ""
+                cues += Cue(CueType.SUBSTITUTION, cmd.side, text = "SUB ${s.team(cmd.side).info.shortName}$inTxt$outTxt" + stopSuffix(stopped))
                 if (stopped) cues += autoStopCue()
             }
 
@@ -314,7 +342,8 @@ class GameSession(
                 val payload = when (val p = cur.payload) {
                     is Score -> p.copy(playerId = cmd.playerId)
                     is Foul -> p.copy(playerId = cmd.playerId)
-                    else -> return "Only scores and fouls have players"
+                    is FreeThrows -> p.copy(playerId = cmd.playerId)
+                    else -> return "Only scores, free throws and fouls have players"
                 }
                 tx.replace(cur, cur.copy(payload = payload))
                 val who = s.player(cmd.playerId)?.let { "#${it.info.number}" } ?: "TEAM"
@@ -565,6 +594,8 @@ class GameSession(
         Command.ReopenGame -> "REOPEN"
         is Command.AddScore -> "+${cmd.points} ${state.team(cmd.side).info.shortName}"
         is Command.AddFoul -> "FOUL ${state.player(cmd.playerId)?.let { "#" + it.info.number } ?: state.team(cmd.side).info.shortName}"
+        is Command.AddFreeThrows -> "FT ${cmd.made}/${cmd.attempts}"
+        is Command.AddSubstitution -> "SUB"
         is Command.StartTimeout -> "TIMEOUT"
         Command.EndTimeout -> "END T/O"
         is Command.AdjustTimeouts -> "T/O ADJ"

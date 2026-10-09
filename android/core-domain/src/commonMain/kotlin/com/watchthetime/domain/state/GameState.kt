@@ -45,6 +45,9 @@ data class PlayerState(
     val made1: Int = 0,
     val made2: Int = 0,
     val made3: Int = 0,
+    /** Free throws (from +1 FT scores and free-throw sets). */
+    val ftMade: Int = 0,
+    val ftAttempted: Int = 0,
     val fouls: List<FoulRecord> = emptyList(),
 ) {
     val id: String get() = info.id

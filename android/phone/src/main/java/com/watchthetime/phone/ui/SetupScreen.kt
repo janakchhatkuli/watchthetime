@@ -52,7 +52,7 @@ fun SetupScreen(gameId: String, onBack: () -> Unit) {
         message = out.error ?: ok
     }
 
-    val tabs = listOf(s.team(TeamSide.HOME).info.shortName, s.team(TeamSide.AWAY).info.shortName, "Rules", "Timeouts")
+    val tabs = listOf(s.team(TeamSide.HOME).info.shortName, s.team(TeamSide.AWAY).info.shortName, "Rules & clock", "Timeouts")
     WttScreen("Teams & rules", onBack, subtitle = "Changes are logged and recomputed") {
         Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             tabs.forEachIndexed { i, t -> WttChip(t, tab == i, { tab = i; message = null }, Modifier.weight(1f)) }
@@ -126,6 +126,14 @@ private fun TeamTab(s: GameState, side: TeamSide, version: Long, run: (Command, 
 
 @Composable
 private fun RulesTab(s: GameState, version: Long, run: (Command, String) -> Unit) {
+    var policy by remember(s.clockPolicy) { mutableStateOf(s.clockPolicy) }
+    ClockPolicyEditor(policy, s.rules) { policy = it }
+    WttButton("Save clock mode", { run(Command.SetClockPolicy(policy), "Clock mode saved") }, Modifier.fillMaxWidth().padding(top = 8.dp),
+        kind = ButtonKind.PRIMARY, enabled = policy != s.clockPolicy)
+    Text("Now: ${s.clockPolicy.summary}. The change is logged and can be undone.",
+        style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 6.dp))
+    HRule(Modifier.padding(top = 12.dp))
+
     var rules by remember { mutableStateOf(s.rules) }
     WttButton("Save rules", { run(Command.UpdateRules(rules), "Rules saved") }, Modifier.fillMaxWidth().padding(top = 12.dp),
         kind = ButtonKind.PRIMARY, enabled = rules != s.rules)

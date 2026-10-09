@@ -162,6 +162,23 @@ fun PlayerDialog(s: GameState, playerId: String, send: (Command) -> Unit, onDism
     }
 }
 
+/** Change the clock mode mid-game. Applying writes a logged, undoable event. */
+@Composable
+fun ClockModeDialog(s: GameState, send: (Command) -> Unit, onDismiss: () -> Unit) {
+    var policy by remember { mutableStateOf(s.clockPolicy) }
+    WttDialog("Clock mode", onDismiss, buttons = {
+        WttButton("Cancel", onDismiss, kind = ButtonKind.GHOST)
+        WttButton("Apply", { send(Command.SetClockPolicy(policy)); onDismiss() }, kind = ButtonKind.PRIMARY,
+            enabled = policy != s.clockPolicy)
+    }) {
+        Text("Now: ${s.clockPolicy.summary}", style = MaterialTheme.typography.titleMedium, color = Wtt.Amber,
+            modifier = Modifier.padding(top = 8.dp))
+        ClockPolicyEditor(policy, s.rules) { policy = it }
+        Text("The change is recorded in the event log and can be undone. The clock itself is not started or stopped.",
+            style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(vertical = 8.dp))
+    }
+}
+
 /** Game clock fine-tuning plus period controls. */
 @Composable
 fun ClockDialog(s: GameState, now: Stamp, send: (Command) -> Unit, onDismiss: () -> Unit) {

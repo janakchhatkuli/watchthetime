@@ -51,7 +51,13 @@ val WttTypography = Typography(
     labelSmall = barlow(12, FontWeight.Bold, 1.5),
 )
 
-private val Square = RoundedCornerShape(0.dp)
+/** Corner radii shared by every component. */
+object WttShape {
+    val Small = RoundedCornerShape(8.dp)
+    val Medium = RoundedCornerShape(14.dp)
+    val Large = RoundedCornerShape(24.dp)
+    val Pill = RoundedCornerShape(50)
+}
 
 private val WttColors = darkColorScheme(
     primary = Wtt.Amber,
@@ -90,7 +96,7 @@ fun WttTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = WttColors,
         typography = WttTypography,
-        shapes = Shapes(Square, Square, Square, Square, Square),
+        shapes = Shapes(WttShape.Small, WttShape.Small, WttShape.Medium, WttShape.Large, WttShape.Large),
         content = content,
     )
 }

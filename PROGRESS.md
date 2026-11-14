@@ -9,8 +9,9 @@ Last updated: 2026-10-08
 - Default rules preset: **NBA** (4x12 min, foul-out at 6, bonus from the 5th team foul, last-2-minutes rule, 24/14 shot clock).
 - Editing during a live game is allowed.
 - Sounds: generated "real-equipment" sounds (buzzer, whistle, scorer's-table beeps). No licensed recordings.
-- Design: arena scoreboard style. Black #0A0A0A, off-white #EFEBE3, amber #FF8A00, alert red #D7262B.
-  DSEG7 seven-segment digits and Barlow Condensed. Square corners, no gradients, glow or glass effects, custom-drawn icons.
+- Design: soft scoreboard style. Charcoal #141312, off-white #EFEBE3, amber #FFA23A, alert red #E5534B.
+  DSEG7 seven-segment digits and Barlow Condensed. Rounded corners (`WttShape`), flat colours,
+  Material Symbols Rounded icons via `WttIcons` (plus a custom jersey).
 
 ## Done
 - `android/` Gradle project, version catalog `gradle/libs.versions.toml`, wrapper (Gradle 8.14.3)

@@ -1,6 +1,7 @@
 package com.watchthetime.phone.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,10 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -51,7 +54,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     WttScreen("Settings", onBack) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
-            SectionLabel("Sound & haptics")
+            SectionLabel("Sound & haptics", icon = WttIcons.Speaker)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (m in FeedbackMode.entries) WttChip(m.label, fb.mode == m, { update { it.copy(feedback = it.feedback.copy(mode = m)) } })
             }
@@ -61,11 +64,12 @@ fun SettingsScreen(onBack: () -> Unit) {
             LabeledSlider("Volume", fb.masterVolume) { v -> update { it.copy(feedback = it.feedback.copy(masterVolume = v)) } }
             LabeledSlider("Vibration strength", fb.hapticStrength) { v -> update { it.copy(feedback = it.feedback.copy(hapticStrength = v.coerceAtLeast(0.1f))) } }
 
-            SectionLabel("Cues")
+            SectionLabel("Cues", icon = WttIcons.Bell)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("MOMENT", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted, modifier = Modifier.weight(1f))
-                Text("SOUND", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted, modifier = Modifier.padding(end = 4.dp))
-                Text("VIBR.", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted, modifier = Modifier.padding(end = 52.dp))
+                Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) { Icon(WttIcons.Speaker, "Sound", tint = Wtt.Muted) }
+                Box(Modifier.width(48.dp), contentAlignment = Alignment.Center) { Icon(WttIcons.Vibration, "Vibration", tint = Wtt.Muted) }
+                Spacer(Modifier.width(48.dp))
             }
             for (type in CueType.entries) {
                 CueRow(
@@ -78,18 +82,18 @@ fun SettingsScreen(onBack: () -> Unit) {
                 HRule()
             }
 
-            SectionLabel("Display")
+            SectionLabel("Display", icon = WttIcons.Eye)
             ToggleRow("Tenths of a second in the last minute", st.display.showTenthsInLastMinute,
-                { v -> update { it.copy(display = it.display.copy(showTenthsInLastMinute = v)) } })
+                { v -> update { it.copy(display = it.display.copy(showTenthsInLastMinute = v)) } }, icon = WttIcons.Stopwatch)
             ToggleRow("Blink the clock when stopped", st.display.blinkWhenStopped,
                 { v -> update { it.copy(display = it.display.copy(blinkWhenStopped = v)) } },
-                "A stopped clock is always red; this also makes it pulse slowly")
+                "A stopped clock is always red; this also makes it pulse slowly", WttIcons.Bulb)
             ToggleRow("Offer “Assign #” after a score", st.display.promptScorer,
-                { v -> update { it.copy(display = it.display.copy(promptScorer = v)) } }, "Attribute team points to a player afterwards")
+                { v -> update { it.copy(display = it.display.copy(promptScorer = v)) } }, "Attribute team points to a player afterwards", WttIcons.Hash)
             ToggleRow("Confirm fouls with a button", st.display.confirmFoulType,
-                { v -> update { it.copy(display = it.display.copy(confirmFoulType = v)) } }, "Off: tapping a jersey records the foul immediately")
+                { v -> update { it.copy(display = it.display.copy(confirmFoulType = v)) } }, "Off: tapping a jersey records the foul immediately", WttIcons.Touch)
 
-            SectionLabel("Game")
+            SectionLabel("Game", icon = WttIcons.Basketball)
             Text("Default rules for new games", style = MaterialTheme.typography.bodyLarge, color = Wtt.OffWhite)
             Spacer(Modifier.height(6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -98,10 +102,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
             ToggleRow("Shot-clock violation stops the game clock", st.game.shotExpiryStopsGame,
-                { v -> update { it.copy(game = it.game.copy(shotExpiryStopsGame = v)) } })
+                { v -> update { it.copy(game = it.game.copy(shotExpiryStopsGame = v)) } }, icon = WttIcons.Whistle)
             ToggleRow("Safe mode", st.gestures.safeMode,
                 { v -> update { it.copy(gestures = it.gestures.copy(safeMode = v)) } },
-                "Ask before undo, end period, final, set clock, delete")
+                "Ask before undo, end period, final, set clock, delete", WttIcons.Shield)
             Spacer(Modifier.height(24.dp))
         }
     }

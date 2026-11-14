@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="wtt_black">#FF0A0A0A</color>
-    <color name="wtt_amber">#FFFF8A00</color>
+    <color name="wtt_black">#FF141312</color>
+    <color name="wtt_amber">#FFFFA23A</color>
     <color name="wtt_offwhite">#FFEFEBE3</color>
 
     <style name="Theme.Wtt" parent="android:Theme.Material.NoActionBar">

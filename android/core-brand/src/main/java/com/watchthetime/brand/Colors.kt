@@ -2,23 +2,23 @@ package com.watchthetime.brand
 
 import androidx.compose.ui.graphics.Color
 
-/** Arena scoreboard palette. Flat colours only: no gradients, glow or translucency effects. */
+/** Soft scoreboard palette: warm charcoal surfaces, toned-down amber and red. Flat colours only. */
 object Wtt {
-    val Black = Color(0xFF0A0A0A)
+    val Black = Color(0xFF141312)
     val OffWhite = Color(0xFFEFEBE3)
-    val Amber = Color(0xFFFF8A00)
-    val Red = Color(0xFFD7262B)
+    val Amber = Color(0xFFFFA23A)
+    val Red = Color(0xFFE5534B)
 
-    /** Raised panels on the black background. */
-    val Panel = Color(0xFF151515)
-    val PanelHigh = Color(0xFF1F1F1F)
+    /** Raised panels on the background. */
+    val Panel = Color(0xFF1E1C1A)
+    val PanelHigh = Color(0xFF2B2826)
     /** 1dp rules between panels. */
-    val Line = Color(0xFF2C2C2A)
+    val Line = Color(0xFF383532)
     /** Unlit seven-segment backdrop. */
-    val Ghost = Color(0xFF1C1A17)
+    val Ghost = Color(0xFF242120)
     /** Secondary text. */
-    val Muted = Color(0xFF8A8A85)
-    val Disabled = Color(0xFF4A4A47)
+    val Muted = Color(0xFF9C9891)
+    val Disabled = Color(0xFF575450)
 
     fun argb(v: Long) = Color(v.toInt())
 

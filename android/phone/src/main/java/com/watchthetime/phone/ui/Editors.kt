@@ -42,7 +42,7 @@ private fun cycle(list: List<Int>, cur: Int, dir: Int): Int {
 /** Clock mode picker (stopping / running) with the per-mode late-game option. */
 @Composable
 fun ClockPolicyEditor(policy: ClockPolicy, rules: Rules, onChange: (ClockPolicy) -> Unit) {
-    SectionLabel("Clock mode")
+    SectionLabel("Clock mode", icon = WttIcons.Stopwatch)
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         for (m in ClockMode.entries) {
             WttChip(m.label, policy.mode == m, { onChange(policy.copy(mode = m)) }, Modifier.weight(1f))
@@ -69,7 +69,7 @@ fun ClockPolicyEditor(policy: ClockPolicy, rules: Rules, onChange: (ClockPolicy)
 fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean = false) {
     fun set(r: Rules) = onChange(r.copy(preset = RulePreset.CUSTOM).validated())
 
-    SectionLabel("Preset")
+    SectionLabel("Preset", icon = WttIcons.Rules)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         for (p in Rules.selectablePresets) {
             WttChip(p.label, rules.preset == p, { onChange(Rules.preset(p)) })
@@ -77,7 +77,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
         if (rules.preset == RulePreset.CUSTOM) WttChip("Custom", true, {})
     }
 
-    SectionLabel("Periods")
+    SectionLabel("Periods", icon = WttIcons.Periods)
     if (!lockedFormat) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WttChip("4 quarters", rules.format == PeriodFormat.QUARTERS, { set(rules.copy(format = PeriodFormat.QUARTERS)) })
@@ -97,7 +97,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
         Stepper("Overtime to", "${rules.overtimeWinPoints}",
             { set(rules.copy(overtimeWinPoints = (rules.overtimeWinPoints - 1).coerceAtLeast(1))) },
             { set(rules.copy(overtimeWinPoints = rules.overtimeWinPoints + 1)) })
-        SectionLabel("Scoring")
+        SectionLabel("Scoring", icon = WttIcons.Basketball)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WttChip("1 & 2", !rules.arcScoring, { set(rules.copy(arcScoring = false)) })
             WttChip("2 & 3 (arc)", rules.arcScoring, { set(rules.copy(arcScoring = true)) })
@@ -114,7 +114,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
             { set(rules.copy(overtimeLengthMs = cycle(Rules.OVERTIME_LENGTH_CHOICES_MIN, oMin, 1) * Rules.MIN)) })
     }
 
-    SectionLabel("Player fouls")
+    SectionLabel("Player fouls", icon = WttIcons.Whistle)
     Stepper("Foul-out at", "${rules.playerFoulLimit}",
         { set(rules.copy(playerFoulLimit = rules.playerFoulLimit - 1, playerFoulWarnAt = (rules.playerFoulLimit - 2).coerceAtLeast(0))) },
         { set(rules.copy(playerFoulLimit = rules.playerFoulLimit + 1, playerFoulWarnAt = rules.playerFoulLimit)) })
@@ -133,7 +133,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
     ToggleRow("Technical counts as personal foul", rules.technicalCountsAsPersonal, { set(rules.copy(technicalCountsAsPersonal = it)) })
     ToggleRow("Technical + unsportsmanlike ejects", rules.technicalPlusUnsportsmanlikeEjects, { set(rules.copy(technicalPlusUnsportsmanlikeEjects = it)) }, "FIBA")
 
-    SectionLabel("Team fouls / bonus")
+    SectionLabel("Team fouls / bonus", icon = WttIcons.Flag)
     Stepper("Bonus from team foul", "${rules.bonusAt}",
         { set(rules.copy(bonusAt = rules.bonusAt - 1)) }, { set(rules.copy(bonusAt = rules.bonusAt + 1)) })
     Stepper("Double bonus from", if (rules.doubleBonusAt == 0) "OFF" else "${rules.doubleBonusAt}",
@@ -146,7 +146,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
         "NBA: bonus from the 2nd team foul in the last 2:00 of a period")
     ToggleRow("Technicals count as team fouls", rules.technicalCountsAsTeamFoul, { set(rules.copy(technicalCountsAsTeamFoul = it)) })
 
-    SectionLabel("Timeouts")
+    SectionLabel("Timeouts", icon = WttIcons.Timeout)
     Stepper(if (rules.format == PeriodFormat.QUARTERS && rules.timeoutsSecondHalf == 0) "Timeouts per game" else "Timeouts 1st half", "${rules.timeoutsFirstHalf}",
         { set(rules.copy(timeoutsFirstHalf = (rules.timeoutsFirstHalf - 1).coerceAtLeast(0))) },
         { set(rules.copy(timeoutsFirstHalf = (rules.timeoutsFirstHalf + 1).coerceAtMost(20))) })
@@ -162,7 +162,7 @@ fun RulesEditor(rules: Rules, onChange: (Rules) -> Unit, lockedFormat: Boolean =
     ToggleRow("Unused timeouts carry to 2nd half", rules.timeoutsCarryToSecondHalf, { set(rules.copy(timeoutsCarryToSecondHalf = it)) })
     ToggleRow("Unused timeouts carry into overtime", rules.timeoutsCarryIntoOvertime, { set(rules.copy(timeoutsCarryIntoOvertime = it)) })
 
-    SectionLabel("Shot clock")
+    SectionLabel("Shot clock", icon = WttIcons.ShotClock)
     ToggleRow("Shot clock", rules.shotClockEnabled, { set(rules.copy(shotClockEnabled = it)) })
     if (rules.shotClockEnabled) {
         Stepper("Full reset", "${rules.shotClockFullMs / 1000} s",
@@ -184,7 +184,7 @@ fun TeamInfoEditor(info: TeamInfo, onChange: (TeamInfo) -> Unit) {
         info.shortName, { onChange(info.copy(shortName = it.uppercase().filter { c -> c.isLetterOrDigit() }.take(5))) },
         "Short name (max 5)", Modifier.fillMaxWidth(), caps = true,
     )
-    SectionLabel("Colour")
+    SectionLabel("Colour", icon = WttIcons.Palette)
     ColorPicker(info.colorArgb) { onChange(info.copy(colorArgb = it)) }
 }
 

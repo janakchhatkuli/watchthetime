@@ -86,12 +86,12 @@ private fun TeamTab(s: GameState, side: TeamSide, version: Long, run: (Command, 
     var newName by remember(side) { mutableStateOf("") }
     var editing by remember(side) { mutableStateOf<PlayerInfo?>(null) }
 
-    SectionLabel("Team")
+    SectionLabel("Team", icon = WttIcons.Teams)
     TeamInfoEditor(info) { info = it }
     WttButton("Save team", { run(Command.UpdateTeam(side, info), "Team saved") }, Modifier.fillMaxWidth().padding(top = 8.dp),
-        kind = ButtonKind.PRIMARY, enabled = info != s.team(side).info && info.name.isNotBlank() && info.shortName.isNotBlank())
+        kind = ButtonKind.PRIMARY, icon = WttIcons.Save, enabled = info != s.team(side).info && info.name.isNotBlank() && info.shortName.isNotBlank())
 
-    SectionLabel("Roster · ${s.roster(side).size}")
+    SectionLabel("Roster · ${s.roster(side).size}", icon = WttIcons.Jersey)
     for (p in s.roster(side)) {
         val e = editing
         if (e != null && e.id == p.id) {
@@ -112,7 +112,7 @@ private fun TeamTab(s: GameState, side: TeamSide, version: Long, run: (Command, 
         }
         HRule()
     }
-    SectionLabel("Add player")
+    SectionLabel("Add player", icon = WttIcons.PersonAdd)
     Row(verticalAlignment = Alignment.CenterVertically) {
         WttTextField(newNumber, { newNumber = it.filter { c -> c.isDigit() }.take(2) }, "#", Modifier.width(76.dp), number = true)
         Spacer(Modifier.width(8.dp))
@@ -129,14 +129,14 @@ private fun RulesTab(s: GameState, version: Long, run: (Command, String) -> Unit
     var policy by remember(s.clockPolicy) { mutableStateOf(s.clockPolicy) }
     ClockPolicyEditor(policy, s.rules) { policy = it }
     WttButton("Save clock mode", { run(Command.SetClockPolicy(policy), "Clock mode saved") }, Modifier.fillMaxWidth().padding(top = 8.dp),
-        kind = ButtonKind.PRIMARY, enabled = policy != s.clockPolicy)
+        kind = ButtonKind.PRIMARY, icon = WttIcons.Save, enabled = policy != s.clockPolicy)
     Text("Now: ${s.clockPolicy.summary}. The change is logged and can be undone.",
         style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 6.dp))
     HRule(Modifier.padding(top = 12.dp))
 
     var rules by remember { mutableStateOf(s.rules) }
     WttButton("Save rules", { run(Command.UpdateRules(rules), "Rules saved") }, Modifier.fillMaxWidth().padding(top = 12.dp),
-        kind = ButtonKind.PRIMARY, enabled = rules != s.rules)
+        kind = ButtonKind.PRIMARY, icon = WttIcons.Save, enabled = rules != s.rules)
     Text("Changing rules mid-game recomputes bonus, foul-outs and timeouts from the log.",
         style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 6.dp))
     RulesEditor(rules, { rules = it }, lockedFormat = s.everStarted)

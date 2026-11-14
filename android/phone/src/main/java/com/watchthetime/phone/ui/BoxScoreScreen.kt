@@ -66,7 +66,7 @@ fun BoxScoreScreen(gameId: String, onBack: () -> Unit) {
                 }
             }
             HRule()
-            SectionLabel("By period")
+            SectionLabel("By period", icon = WttIcons.Periods)
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 Column {
                     Row {
@@ -96,8 +96,8 @@ fun BoxScoreScreen(gameId: String, onBack: () -> Unit) {
         }
         HRule()
         Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WttButton("CSV", { Exporter.shareCsv(ctx, live.events, s) }, Modifier.weight(1f), icon = WttIcons.Share, kind = ButtonKind.SECONDARY, minHeight = 52.dp)
-            WttButton("PDF", { Exporter.sharePdf(ctx, live.events, s) }, Modifier.weight(1f), icon = WttIcons.Share, kind = ButtonKind.PRIMARY, minHeight = 52.dp)
+            WttButton("CSV", { Exporter.shareCsv(ctx, live.events, s) }, Modifier.weight(1f), icon = WttIcons.Csv, kind = ButtonKind.SECONDARY, minHeight = 52.dp)
+            WttButton("PDF", { Exporter.sharePdf(ctx, live.events, s) }, Modifier.weight(1f), icon = WttIcons.Pdf, kind = ButtonKind.PRIMARY, minHeight = 52.dp)
         }
     }
 }

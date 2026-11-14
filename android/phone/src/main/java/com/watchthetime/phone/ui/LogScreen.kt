@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -38,6 +42,7 @@ import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
 import com.watchthetime.brand.WttChip
 import com.watchthetime.brand.WttIcons
+import com.watchthetime.brand.WttShape
 import com.watchthetime.domain.engine.ClockFormat
 import com.watchthetime.domain.engine.Command
 import com.watchthetime.domain.engine.EventText
@@ -56,6 +61,19 @@ import com.watchthetime.domain.state.GameState
 import com.watchthetime.phone.container
 
 private val FILTERS = listOf("ALL", "SCORE", "FOUL", "CLOCK", "PERIOD", "TIMEOUT", "SHOT", "ROSTER", "DELETED")
+
+private fun kindIcon(kind: String): ImageVector = when (kind) {
+    "SCORE" -> WttIcons.Basketball
+    "FOUL" -> WttIcons.Whistle
+    "CLOCK" -> WttIcons.Stopwatch
+    "PERIOD" -> WttIcons.Periods
+    "TIMEOUT" -> WttIcons.Timeout
+    "SHOT" -> WttIcons.ShotClock
+    "ROSTER", "TEAM" -> WttIcons.Jersey
+    "RULES" -> WttIcons.Rules
+    "DELETED" -> WttIcons.Trash
+    else -> WttIcons.Log
+}
 
 @Composable
 fun LogScreen(gameId: String, onBack: () -> Unit) {
@@ -84,11 +102,11 @@ fun LogScreen(gameId: String, onBack: () -> Unit) {
 
     WttScreen("Event log", onBack, subtitle = "${live.events.count { !it.deleted }} events · tap to edit") {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (f in FILTERS) WttChip(f, filter == f, { filter = f })
+            for (f in FILTERS) WttChip(f, filter == f, { filter = f }, icon = kindIcon(f))
         }
         HRule()
         Box(Modifier.weight(1f)) {
-            if (events.isEmpty()) EmptyNote("Nothing here.")
+            if (events.isEmpty()) EmptyNote("Nothing here.", icon = WttIcons.Log)
             LazyColumn(Modifier.fillMaxSize()) {
                 items(events, key = { it.id }) { e ->
                     LogRow(e, s) { editing = e }
@@ -130,7 +148,13 @@ private fun LogRow(e: GameEvent, s: GameState, onClick: () -> Unit) {
             Text(ClockFormat.periodShort(e.period, s.rules), style = MaterialTheme.typography.labelMedium, color = Wtt.Muted)
             Text(ClockFormat.plain(e.gameClockMs, true), style = MaterialTheme.typography.titleSmall, color = Wtt.OffWhite)
         }
-        Box(Modifier.width(6.dp).height(32.dp).background(side?.let { Wtt.argb(s.team(it).info.colorArgb) } ?: Wtt.Black))
+        val team = side?.let { s.team(it).info.colorArgb }
+        Box(
+            Modifier.size(32.dp).clip(WttShape.Pill).background(team?.let { Wtt.argb(it) } ?: Wtt.PanelHigh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(kindIcon(e.payload.kind), null, tint = team?.let { Wtt.onTeam(it) } ?: Wtt.Muted, modifier = Modifier.size(18.dp))
+        }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -174,7 +198,7 @@ private fun PayloadEditor(s: GameState, d: PayloadDraft) {
             style = MaterialTheme.typography.bodyMedium, color = Wtt.Muted, modifier = Modifier.padding(vertical = 8.dp))
         return
     }
-    SectionLabel("Team")
+    SectionLabel("Team", icon = WttIcons.Teams)
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         for (side in TeamSide.entries) WttChip(s.team(side).info.shortName, d.side == side, {
             if (d.side != side) { d.side = side; d.playerId = null }
@@ -182,18 +206,18 @@ private fun PayloadEditor(s: GameState, d: PayloadDraft) {
     }
     when (d.kind) {
         "SCORE" -> {
-            SectionLabel("Points")
+            SectionLabel("Points", icon = WttIcons.Basketball)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 for (pts in s.rules.scoringPoints) WttChip("+$pts", d.points == pts, { d.points = pts }, Modifier.weight(1f))
             }
         }
         "FOUL" -> {
-            SectionLabel("Foul type")
+            SectionLabel("Foul type", icon = WttIcons.Flag)
             FoulTypeChips(d.foulType, { d.foulType = it }, s.rules.foulTypes)
         }
     }
     if (d.kind != "TIMEOUT") {
-        SectionLabel("Player")
+        SectionLabel("Player", icon = WttIcons.Jersey)
         JerseyGrid(s, d.side, selectedId = d.playerId, onPick = { d.playerId = it.id }, showFouls = d.kind == "FOUL")
         Spacer(Modifier.height(6.dp))
         WttChip("Team / no player", d.playerId == null, { d.playerId = null }, Modifier.fillMaxWidth())
@@ -202,7 +226,7 @@ private fun PayloadEditor(s: GameState, d: PayloadDraft) {
 
 @Composable
 private fun WhenEditor(s: GameState, period: Int, onPeriod: (Int) -> Unit, clockText: String, onClock: (String) -> Unit) {
-    SectionLabel("When")
+    SectionLabel("When", icon = WttIcons.Clock)
     val maxP = maxOf(s.period, s.rules.regulationPeriods) + 1
     Stepper("Period", ClockFormat.periodShort(period, s.rules),
         { onPeriod((period - 1).coerceAtLeast(1)) }, { onPeriod((period + 1).coerceAtMost(maxP)) })
@@ -229,7 +253,7 @@ fun EventEditDialog(
             e.deleted -> WttButton("Restore", onRestore, kind = ButtonKind.SECONDARY, icon = WttIcons.Restore)
             else -> WttButton("Delete", onDelete, kind = ButtonKind.GHOST, icon = WttIcons.Trash)
         }
-        if (!setup) WttButton("Save", { clockMs?.let { onSave(draft.build(s), period, it) } }, kind = ButtonKind.PRIMARY, enabled = clockMs != null)
+        if (!setup) WttButton("Save", { clockMs?.let { onSave(draft.build(s), period, it) } }, kind = ButtonKind.PRIMARY, icon = WttIcons.Check, enabled = clockMs != null)
     }) {
         Text("${EventText.whenText(e, s)} · revision ${e.rev} · by ${e.origin}", style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
         if (setup) {
@@ -253,9 +277,9 @@ fun InsertEventDialog(s: GameState, onDismiss: () -> Unit, onInsert: (EventPaylo
         WttButton("Cancel", onDismiss, kind = ButtonKind.GHOST)
         WttButton("Add", { clockMs?.let { onInsert(draft.build(s), period, it) } }, kind = ButtonKind.PRIMARY, enabled = clockMs != null)
     }) {
-        SectionLabel("Kind")
+        SectionLabel("Kind", icon = WttIcons.Log)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (k in listOf("SCORE", "FOUL", "TIMEOUT")) WttChip(k, draft.kind == k, { draft.kind = k }, Modifier.weight(1f))
+            for (k in listOf("SCORE", "FOUL", "TIMEOUT")) WttChip(k, draft.kind == k, { draft.kind = k }, Modifier.weight(1f), icon = kindIcon(k))
         }
         PayloadEditor(s, draft)
         WhenEditor(s, period, { period = it }, clockText, { clockText = it })

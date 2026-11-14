@@ -3,10 +3,12 @@ package com.watchthetime.phone.ui
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.watchthetime.brand.ButtonKind
@@ -41,6 +44,7 @@ import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
 import com.watchthetime.brand.WttIconButton
 import com.watchthetime.brand.WttIcons
+import com.watchthetime.brand.WttShape
 import com.watchthetime.data.RosterCsv
 import com.watchthetime.data.SavedPlayer
 import com.watchthetime.data.SavedTeam
@@ -61,11 +65,12 @@ fun TeamsScreen(onBack: () -> Unit, onEdit: (String) -> Unit) {
     WttScreen("Teams", onBack, subtitle = "Saved teams and rosters") {
         Box(Modifier.weight(1f)) {
             val list = teams
-            if (list != null && list.isEmpty()) EmptyNote("No saved teams.\nTeams are saved when you create a game, or add one here.")
-            LazyColumn(Modifier.fillMaxSize()) {
+            if (list != null && list.isEmpty()) EmptyNote("No saved teams.\nTeams are saved when you create a game, or add one here.", icon = WttIcons.Teams)
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
                 items(list.orEmpty(), key = { it.id }) { t ->
                     Row(
-                        Modifier.fillMaxWidth().clickable { onEdit(t.id) }.padding(16.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clip(WttShape.Medium)
+                            .background(Wtt.Panel).clickable { onEdit(t.id) }.padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TeamTag(t.info.shortName, t.info.colorArgb)
@@ -76,7 +81,6 @@ fun TeamsScreen(onBack: () -> Unit, onEdit: (String) -> Unit) {
                         }
                         Icon(WttIcons.ChevronRight, null, tint = Wtt.Muted)
                     }
-                    HRule()
                 }
             }
         }
@@ -138,7 +142,7 @@ fun TeamEditScreen(teamId: String, onBack: () -> Unit) {
             Spacer(Modifier.height(12.dp))
             TeamInfoEditor(info) { info = it }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SectionLabel("Roster · ${players.size}", Modifier.weight(1f))
+                SectionLabel("Roster · ${players.size}", Modifier.weight(1f), icon = WttIcons.Jersey)
                 WttButton("Import CSV", { import.launch(arrayOf("text/*", "application/csv", "application/vnd.ms-excel")) },
                     kind = ButtonKind.GHOST, icon = WttIcons.Import, minHeight = 40.dp)
             }
@@ -152,7 +156,7 @@ fun TeamEditScreen(teamId: String, onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WttButton("Save", {
                 scope.launch { c.teams.save(SavedTeam(id, info, players)); onBack() }
-            }, kind = ButtonKind.PRIMARY, enabled = problem == null, modifier = Modifier.fillMaxWidth(), minHeight = 56.dp)
+            }, kind = ButtonKind.PRIMARY, icon = WttIcons.Save, enabled = problem == null, modifier = Modifier.fillMaxWidth(), minHeight = 56.dp)
         }
     }
 

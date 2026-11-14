@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.watchthetime.brand.ButtonKind
@@ -33,6 +34,8 @@ import com.watchthetime.brand.SectionLabel
 import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
 import com.watchthetime.brand.WttChip
+import com.watchthetime.brand.WttIcons
+import com.watchthetime.brand.WttShape
 import com.watchthetime.data.SavedPlayer
 import com.watchthetime.data.SavedTeam
 import com.watchthetime.domain.model.PlayerInfo
@@ -99,10 +102,10 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
     WttScreen(title = "New game", subtitle = "Step ${step + 1} of 3 · ${steps[step]}", onBack = {
         if (step > 0) step-- else onBack()
     }) {
-        Row(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             steps.forEachIndexed { i, _ ->
                 Box(
-                    Modifier.weight(1f).height(4.dp).padding(horizontal = 1.dp)
+                    Modifier.weight(1f).height(4.dp).clip(WttShape.Pill)
                         .background(if (i <= step) Wtt.Amber else Wtt.PanelHigh)
                 )
             }
@@ -116,7 +119,8 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                     RulesEditor(rules, { rules = it; rulesTouched = true })
                 }
                 1 -> for ((side, d) in listOf(TeamSide.HOME to home, TeamSide.AWAY to away)) {
-                    SectionLabel(if (side == TeamSide.HOME) "Home team" else "Away team", color = Wtt.OffWhite)
+                    SectionLabel(if (side == TeamSide.HOME) "Home team" else "Away team", color = Wtt.OffWhite,
+                        icon = if (side == TeamSide.HOME) WttIcons.Home else WttIcons.Away)
                     if (savedTeams.isNotEmpty()) {
                         Text("SAVED TEAMS", style = MaterialTheme.typography.labelSmall, color = Wtt.Muted)
                         Spacer(Modifier.height(6.dp))
@@ -151,18 +155,19 @@ fun NewGameScreen(onBack: () -> Unit, onCreated: (String) -> Unit) {
                         "Rosters are optional: without them, points and fouls count for the team only. You can edit rosters during the game.",
                         style = MaterialTheme.typography.bodySmall, color = Wtt.Muted,
                     )
-                    ToggleRow("Save teams for next time", saveTeams, { saveTeams = it })
+                    ToggleRow("Save teams for next time", saveTeams, { saveTeams = it }, icon = WttIcons.Save)
                 }
             }
         }
         HRule()
         problem?.let { Text(it, color = Wtt.Red, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 16.dp, top = 8.dp)) }
         Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (step > 0) WttButton("Back", { step-- }, kind = ButtonKind.GHOST, modifier = Modifier.weight(1f), minHeight = 56.dp)
+            if (step > 0) WttButton("Back", { step-- }, kind = ButtonKind.GHOST, icon = WttIcons.Back, modifier = Modifier.weight(1f), minHeight = 56.dp)
             if (step < 2) {
-                WttButton("Next", { step++ }, kind = ButtonKind.PRIMARY, enabled = problem == null, modifier = Modifier.weight(2f), minHeight = 56.dp)
+                WttButton("Next", { step++ }, kind = ButtonKind.PRIMARY, enabled = problem == null, modifier = Modifier.weight(2f), minHeight = 56.dp,
+                    trailingIcon = WttIcons.Forward)
             } else {
-                WttButton("Create game", ::create, kind = ButtonKind.PRIMARY, enabled = problem == null, modifier = Modifier.weight(2f), minHeight = 56.dp)
+                WttButton("Create game", ::create, kind = ButtonKind.PRIMARY, icon = WttIcons.Play, enabled = problem == null, modifier = Modifier.weight(2f), minHeight = 56.dp)
             }
         }
     }

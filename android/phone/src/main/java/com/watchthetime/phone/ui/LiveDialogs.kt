@@ -71,16 +71,16 @@ fun FoulDialog(
             }
         },
     ) {
-        SectionLabel("Type")
+        SectionLabel("Type", icon = WttIcons.Flag)
         FoulTypeChips(type, { type = it }, foulTypes)
-        SectionLabel("Player · jersey number")
+        SectionLabel("Player · jersey number", icon = WttIcons.Jersey)
         JerseyGrid(s, side, selectedId = selected, onPick = { p ->
             if (confirmStep) selected = p.id else onRecord(p.id, type)
         })
         Spacer(Modifier.height(10.dp))
         WttButton(
             "Team / bench foul", { onRecord(null, type) },
-            kind = ButtonKind.SECONDARY, modifier = Modifier.fillMaxWidth(), minHeight = 52.dp,
+            kind = ButtonKind.SECONDARY, icon = WttIcons.Teams, modifier = Modifier.fillMaxWidth(), minHeight = 52.dp,
         )
         Spacer(Modifier.height(4.dp))
         Text(
@@ -97,7 +97,7 @@ fun PlayerPickDialog(s: GameState, side: TeamSide, title: String, onDismiss: () 
         Spacer(Modifier.height(8.dp))
         JerseyGrid(s, side, onPick = { onPick(it.id) }, showFouls = false)
         Spacer(Modifier.height(10.dp))
-        WttButton("Team (no player)", { onPick(null) }, kind = ButtonKind.GHOST, modifier = Modifier.fillMaxWidth())
+        WttButton("Team (no player)", { onPick(null) }, kind = ButtonKind.GHOST, icon = WttIcons.Teams, modifier = Modifier.fillMaxWidth())
     }
 }
 
@@ -120,19 +120,19 @@ fun FreeThrowsDialog(
             WttButton("Record", { onRecord(selected, made, attempts) }, kind = ButtonKind.PRIMARY)
         }
     }) {
-        SectionLabel("Shooter")
+        SectionLabel("Shooter", icon = WttIcons.Jersey)
         JerseyGrid(s, side, selectedId = selected, onPick = { p ->
             if (confirmStep) { selected = p.id; bench = false } else onRecord(p.id, made, attempts)
         })
         Spacer(Modifier.height(6.dp))
         WttButton("Team (no shooter)", {
             if (confirmStep) { selected = null; bench = true } else onRecord(null, made, attempts)
-        }, kind = if (bench) ButtonKind.PRIMARY else ButtonKind.GHOST, modifier = Modifier.fillMaxWidth())
-        SectionLabel("Attempts")
+        }, kind = if (bench) ButtonKind.PRIMARY else ButtonKind.GHOST, icon = WttIcons.Teams, modifier = Modifier.fillMaxWidth())
+        SectionLabel("Attempts", icon = WttIcons.Basketball)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (n in 1..5) WttChip("$n", attempts == n, { attempts = n; if (made > n) made = n }, Modifier.weight(1f))
         }
-        SectionLabel("Made")
+        SectionLabel("Made", icon = WttIcons.Check)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (n in 0..5) WttChip("$n", made == n && n <= attempts, { if (n <= attempts) made = n }, Modifier.weight(1f))
         }
@@ -149,7 +149,7 @@ fun SubDialog(s: GameState, side: TeamSide, onDismiss: () -> Unit, onRecord: (ou
     var out by remember { mutableStateOf<String?>(null) }
     val short = s.team(side).info.shortName
     WttDialog("Substitution · $short", onDismiss) {
-        SectionLabel(if (out == null) "Player OUT" else "Player IN")
+        SectionLabel(if (out == null) "Player OUT" else "Player IN", icon = WttIcons.Swap)
         JerseyGrid(
             s, side, selectedId = if (out == null) null else null, showFouls = false,
             onPick = { p ->
@@ -210,12 +210,12 @@ fun PlayerDialog(s: GameState, playerId: String, send: (Command) -> Unit, onDism
             }
             return@WttDialog
         }
-        SectionLabel("Score")
+        SectionLabel("Score", icon = WttIcons.Basketball)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (pts in s.rules.scoringPoints) WttButton("+$pts", { send(Command.AddScore(side, pts, p.id)); onDismiss() }, Modifier.weight(1f),
                 enabled = enabled, minHeight = 56.dp, textStyle = MaterialTheme.typography.headlineSmall)
         }
-        SectionLabel("Foul")
+        SectionLabel("Foul", icon = WttIcons.Whistle)
         val foulTypes = s.rules.foulTypes
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for (t in foulTypes) WttButton(
@@ -223,7 +223,7 @@ fun PlayerDialog(s: GameState, playerId: String, send: (Command) -> Unit, onDism
                 kind = if (t.isFlag) ButtonKind.DANGER else ButtonKind.SECONDARY, minHeight = 52.dp,
             )
         }
-        SectionLabel("Roster")
+        SectionLabel("Roster", icon = WttIcons.Jersey)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             WttButton("Edit", { editing = true }, Modifier.weight(1f), icon = WttIcons.Pencil, kind = ButtonKind.GHOST)
             WttButton("Remove", { send(Command.RemovePlayer(p.id)); onDismiss() }, Modifier.weight(1f), icon = WttIcons.Trash, kind = ButtonKind.GHOST)
@@ -260,30 +260,31 @@ fun ClockDialog(s: GameState, now: Stamp, send: (Command) -> Unit, onDismiss: ()
             Text(ClockFormat.periodLong(s.period, s.rules) + if (s.clock.running) " · RUNNING" else " · STOPPED",
                 style = MaterialTheme.typography.labelMedium, color = Wtt.Muted)
         }
-        SectionLabel("Adjust")
+        SectionLabel("Adjust", icon = WttIcons.Sliders)
         val steps = listOf(-10_000L to "−10s", -1_000L to "−1s", -100L to "−.1", 100L to "+.1", 1_000L to "+1s", 10_000L to "+10s")
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             for ((d, label) in steps) WttButton(label, { send(Command.AdjustClock(d)) }, Modifier.weight(1f), minHeight = 52.dp, enabled = !s.finalized)
         }
-        SectionLabel("Set exactly")
+        SectionLabel("Set exactly", icon = WttIcons.Pencil)
         Row(verticalAlignment = Alignment.CenterVertically) {
             WttTextField(setText, { setText = it.filter { c -> c.isDigit() || c == ':' || c == '.' }.take(8) }, "m:ss.t", Modifier.weight(1f), number = false)
             Spacer(Modifier.width(8.dp))
             val ms = parseClock(setText)
-            WttButton("Set", { ms?.let { send(Command.SetClock(it)) } }, kind = ButtonKind.PRIMARY,
+            WttButton("Set", { ms?.let { send(Command.SetClock(it)) } }, kind = ButtonKind.PRIMARY, icon = WttIcons.Check,
                 enabled = ms != null && ms <= s.rules.lengthOf(s.period) && !s.finalized, minHeight = 56.dp)
         }
-        SectionLabel("Period")
+        SectionLabel("Period", icon = WttIcons.Periods)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            WttButton("Previous", { send(Command.PreviousPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST,
+            WttButton("Previous", { send(Command.PreviousPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST, icon = WttIcons.SkipPrevious,
                 enabled = s.finalized || s.period > 1)
-            WttButton("End period", { send(Command.EndPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST,
+            WttButton("End period", { send(Command.EndPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST, icon = WttIcons.Stop,
                 enabled = !s.finalized && (s.clock.running || s.clock.baseMs > 0))
-            WttButton("Next", { send(Command.NextPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST, enabled = !s.finalized)
+            WttButton("Next", { send(Command.NextPeriod); onDismiss() }, Modifier.weight(1f), kind = ButtonKind.GHOST, enabled = !s.finalized,
+                trailingIcon = WttIcons.SkipNext)
         }
         Spacer(Modifier.height(6.dp))
-        if (s.finalized) WttButton("Reopen game", { send(Command.ReopenGame); onDismiss() }, Modifier.fillMaxWidth(), kind = ButtonKind.SECONDARY)
-        else WttButton("Final", { send(Command.FinalizeGame); onDismiss() }, Modifier.fillMaxWidth(), kind = ButtonKind.DANGER)
+        if (s.finalized) WttButton("Reopen game", { send(Command.ReopenGame); onDismiss() }, Modifier.fillMaxWidth(), kind = ButtonKind.SECONDARY, icon = WttIcons.LockOpen)
+        else WttButton("Final", { send(Command.FinalizeGame); onDismiss() }, Modifier.fillMaxWidth(), kind = ButtonKind.DANGER, icon = WttIcons.Flag)
         Spacer(Modifier.height(4.dp))
     }
 }
@@ -296,16 +297,17 @@ fun ShotDialog(s: GameState, now: Stamp, send: (Command) -> Unit, onDismiss: () 
             SegmentText(ClockFormat.shot(v), 64.sp, color = if (s.shotHeld) Wtt.Muted else Wtt.Red)
             if (s.shotHeld) Text("HOLD", style = MaterialTheme.typography.labelMedium, color = Wtt.Muted)
         }
-        SectionLabel("Reset")
+        SectionLabel("Reset", icon = WttIcons.Reset)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             WttButton("${s.rules.shotClockFullMs / 1000}", { send(Command.ResetShotClock(false)) }, Modifier.weight(1f), kind = ButtonKind.PRIMARY, minHeight = 56.dp)
             WttButton("${s.rules.shotClockShortMs / 1000}", { send(Command.ResetShotClock(true)) }, Modifier.weight(1f), kind = ButtonKind.PRIMARY, minHeight = 56.dp)
         }
-        SectionLabel("Adjust")
+        SectionLabel("Adjust", icon = WttIcons.Sliders)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             WttButton("−1s", { send(Command.AdjustShotClock(-1000)) }, Modifier.weight(1f), minHeight = 52.dp)
             WttButton("+1s", { send(Command.AdjustShotClock(1000)) }, Modifier.weight(1f), minHeight = 52.dp)
-            WttButton(if (s.shotHeld) "Run" else "Hold", { send(Command.ToggleShotHold) }, Modifier.weight(1f), minHeight = 52.dp, kind = ButtonKind.GHOST)
+            WttButton(if (s.shotHeld) "Run" else "Hold", { send(Command.ToggleShotHold) }, Modifier.weight(1f), minHeight = 52.dp, kind = ButtonKind.GHOST,
+                icon = if (s.shotHeld) WttIcons.Play else WttIcons.Pause)
         }
         Text("Hold freezes the shot clock while the game clock runs (e.g. under the shot-clock-off rule).",
             style = MaterialTheme.typography.bodySmall, color = Wtt.Muted, modifier = Modifier.padding(top = 8.dp))

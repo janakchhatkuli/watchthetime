@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -33,7 +34,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -49,12 +52,13 @@ import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
 import com.watchthetime.brand.WttIconButton
 import com.watchthetime.brand.WttIcons
+import com.watchthetime.brand.WttShape
 import com.watchthetime.domain.model.TeamColors
 import com.watchthetime.domain.state.GameState
 import com.watchthetime.domain.state.PlayerState
 import com.watchthetime.domain.model.TeamSide
 
-/** Screen frame: square top bar (back, title, actions) over black. */
+/** Screen frame: top bar (back, title, actions) over the background. */
 @Composable
 fun WttScreen(
     title: String,
@@ -93,15 +97,14 @@ fun WttDialog(
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             Modifier.padding(16.dp).widthIn(max = 520.dp).fillMaxWidth()
-                .background(Wtt.Panel).border(1.dp, Wtt.Line),
+                .clip(WttShape.Large).background(Wtt.Panel).border(1.dp, Wtt.Line, WttShape.Large),
         ) {
-            Box(Modifier.fillMaxWidth().height(4.dp).background(Wtt.Amber))
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(title.uppercase(), style = MaterialTheme.typography.titleLarge, color = Wtt.OffWhite, modifier = Modifier.weight(1f))
                 WttIconButton(WttIcons.Close, "Close", onDismiss)
             }
             Column(
-                Modifier.padding(horizontal = 16.dp).weight(1f, fill = false)
+                Modifier.padding(horizontal = 20.dp).weight(1f, fill = false)
                     .let { if (scroll) it.verticalScroll(rememberScrollState()) else it },
             ) { content() }
             Row(
@@ -146,6 +149,7 @@ fun WttTextField(
         label = { Text(label.uppercase(), style = MaterialTheme.typography.labelSmall) },
         modifier = modifier,
         singleLine = singleLine,
+        shape = WttShape.Medium,
         textStyle = MaterialTheme.typography.bodyLarge,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (number) KeyboardType.Number else KeyboardType.Text,
@@ -164,13 +168,17 @@ fun WttTextField(
 }
 
 @Composable
-fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, detail: String? = null) {
+fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit, detail: String? = null, icon: ImageVector? = null) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp)
             .clickable(role = Role.Switch) { onChange(!checked) }
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = Wtt.Muted, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(14.dp))
+        }
         Column(Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge, color = Wtt.OffWhite)
             if (detail != null) Text(detail, style = MaterialTheme.typography.bodySmall, color = Wtt.Muted)
@@ -194,8 +202,9 @@ fun ColorPicker(selected: Long, onPick: (Long) -> Unit) {
             val sel = c.argb == selected
             Box(
                 Modifier.size(44.dp)
-                    .border(if (sel) 3.dp else 1.dp, if (sel) Wtt.Amber else Wtt.Line)
+                    .border(if (sel) 3.dp else 1.dp, if (sel) Wtt.Amber else Wtt.Line, WttShape.Pill)
                     .padding(if (sel) 5.dp else 3.dp)
+                    .clip(WttShape.Pill)
                     .background(Wtt.argb(c.argb))
                     .clickable(role = Role.RadioButton, onClickLabel = c.label) { onPick(c.argb) },
             )
@@ -229,8 +238,8 @@ fun JerseyGrid(
             val bg = when { sel -> Wtt.Amber; out -> Wtt.Red; else -> Wtt.PanelHigh }
             val fg = when { sel -> Wtt.Black; else -> Wtt.OffWhite }
             Column(
-                Modifier.size(width = 64.dp, height = 60.dp).background(bg)
-                    .border(1.dp, if (trouble && !sel) Wtt.Amber else Wtt.Line)
+                Modifier.size(width = 64.dp, height = 60.dp).clip(WttShape.Medium).background(bg)
+                    .border(1.dp, if (trouble && !sel) Wtt.Amber else Wtt.Line, WttShape.Medium)
                     .clickable(role = Role.Button, onClickLabel = "Player ${p.info.label}") { onPick(p) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -252,14 +261,14 @@ fun JerseyGrid(
 /** Team colour block with short name (team colour is a block, never a text colour). */
 @Composable
 fun TeamTag(name: String, argb: Long, modifier: Modifier = Modifier) {
-    Box(modifier.background(Wtt.argb(argb)).padding(horizontal = 8.dp, vertical = 2.dp)) {
+    Box(modifier.clip(WttShape.Small).background(Wtt.argb(argb)).padding(horizontal = 10.dp, vertical = 2.dp)) {
         Text(name.uppercase(), style = MaterialTheme.typography.labelLarge, color = Wtt.onTeam(argb), maxLines = 1)
     }
 }
 
 @Composable
 fun Pill(text: String, bg: Color, fg: Color, modifier: Modifier = Modifier) {
-    Box(modifier.background(bg).padding(horizontal = 6.dp, vertical = 1.dp)) {
+    Box(modifier.clip(WttShape.Pill).background(bg).padding(horizontal = 8.dp, vertical = 1.dp)) {
         Text(text.uppercase(), style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1)
     }
 }

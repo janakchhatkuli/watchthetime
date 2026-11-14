@@ -24,7 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -64,7 +66,7 @@ fun SegmentText(
 enum class ButtonKind { PRIMARY, SECONDARY, DANGER, GHOST }
 
 /**
- * Flat, square scoreboard button. [onLongClick] is optional (used for edit shortcuts).
+ * Flat, rounded scoreboard button. [onLongClick] is optional (used for edit shortcuts).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -80,6 +82,8 @@ fun WttButton(
     minHeight: Dp = 48.dp,
     textStyle: TextStyle = MaterialTheme.typography.labelLarge,
     onLongClick: (() -> Unit)? = null,
+    trailingIcon: ImageVector? = null,
+    shape: Shape = WttShape.Medium,
 ) {
     val (bg, fg, border) = when (kind) {
         ButtonKind.PRIMARY -> Triple(Wtt.Amber, Wtt.Black, null)
@@ -92,8 +96,9 @@ fun WttButton(
     Row(
         modifier
             .heightIn(min = minHeight)
+            .clip(shape)
             .background(cBg)
-            .let { if (border != null) it.border(border) else it }
+            .let { if (border != null) it.border(border, shape) else it }
             .combinedClickable(
                 enabled = enabled, role = Role.Button, onClick = onClick, onLongClick = onLongClick,
             )
@@ -111,10 +116,14 @@ fun WttButton(
                 overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             )
         }
+        if (trailingIcon != null) {
+            Spacer(Modifier.width(8.dp))
+            Icon(trailingIcon, contentDescription = null, tint = cFg, modifier = Modifier.size(20.dp))
+        }
     }
 }
 
-/** Square icon-only button with an accessible label. */
+/** Round icon-only button with an accessible label. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WttIconButton(
@@ -129,6 +138,7 @@ fun WttIconButton(
     Box(
         modifier
             .size(48.dp)
+            .clip(WttShape.Pill)
             .combinedClickable(enabled = enabled, role = Role.Button, onClick = onClick, onLongClick = onLongClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -137,11 +147,12 @@ fun WttIconButton(
     }
 }
 
-/** Small uppercase section heading with an amber tick. */
+/** Small uppercase section heading led by an amber icon (or a tick when there is none). */
 @Composable
-fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = Wtt.Muted) {
+fun SectionLabel(text: String, modifier: Modifier = Modifier, color: Color = Wtt.Muted, icon: ImageVector? = null) {
     Row(modifier.padding(top = 16.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(width = 4.dp, height = 14.dp).background(Wtt.Amber))
+        if (icon != null) Icon(icon, contentDescription = null, tint = Wtt.Amber, modifier = Modifier.size(18.dp))
+        else Box(Modifier.size(width = 4.dp, height = 14.dp).clip(WttShape.Pill).background(Wtt.Amber))
         Spacer(Modifier.width(8.dp))
         Text(text.uppercase(), style = MaterialTheme.typography.labelMedium, color = color)
     }
@@ -155,10 +166,10 @@ fun HRule(modifier: Modifier = Modifier, color: Color = Wtt.Line) {
 /** Solid team colour swatch (team colours are never used as text colour). */
 @Composable
 fun TeamSwatch(argb: Long, modifier: Modifier = Modifier, size: Dp = 16.dp) {
-    Box(modifier.size(size).background(Wtt.argb(argb)).border(1.dp, Wtt.Line))
+    Box(modifier.size(size).clip(WttShape.Pill).background(Wtt.argb(argb)).border(1.dp, Wtt.Line, WttShape.Pill))
 }
 
-/** Square selectable chip (for presets, foul types, toggles). */
+/** Pill-shaped selectable chip (for presets, foul types, toggles). */
 @Composable
 fun WttChip(
     text: String,
@@ -166,9 +177,10 @@ fun WttChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     selectedColor: Color = Wtt.Amber,
+    icon: ImageVector? = null,
 ) {
     WttButton(
-        text = text, onClick = onClick, modifier = modifier,
+        text = text, onClick = onClick, modifier = modifier, icon = icon, shape = WttShape.Pill,
         kind = if (selected) ButtonKind.PRIMARY else ButtonKind.GHOST,
         container = if (selected) selectedColor else null,
         content = if (selected) (if (selectedColor == Wtt.Red) Wtt.OffWhite else Wtt.Black) else null,
@@ -187,19 +199,19 @@ fun Stepper(
 ) {
     Row(modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = Wtt.OffWhite, modifier = Modifier.weight(1f))
-        WttIconButton(WttIcons.Minus, "Decrease $label", onMinus, Modifier.background(Wtt.PanelHigh))
+        WttIconButton(WttIcons.Minus, "Decrease $label", onMinus, Modifier.clip(WttShape.Pill).background(Wtt.PanelHigh))
         Text(
             value, style = MaterialTheme.typography.titleLarge, color = Wtt.Amber,
             textAlign = TextAlign.Center, modifier = Modifier.widthIn(min = 72.dp),
         )
-        WttIconButton(WttIcons.Plus, "Increase $label", onPlus, Modifier.background(Wtt.PanelHigh))
+        WttIconButton(WttIcons.Plus, "Increase $label", onPlus, Modifier.clip(WttShape.Pill).background(Wtt.PanelHigh))
     }
 }
 
 /** Flat panel with optional title. */
 @Composable
 fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Box(modifier.background(Wtt.Panel).border(1.dp, Wtt.Line)) { content() }
+    Box(modifier.clip(WttShape.Medium).background(Wtt.Panel).border(1.dp, Wtt.Line, WttShape.Medium)) { content() }
 }
 
 @Composable
@@ -212,8 +224,12 @@ fun RowScope.Cell(text: String, weight: Float, color: Color = Wtt.OffWhite, alig
 }
 
 @Composable
-fun EmptyNote(text: String, modifier: Modifier = Modifier) {
+fun EmptyNote(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     Column(modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = Wtt.Disabled, modifier = Modifier.size(56.dp))
+            Spacer(Modifier.height(12.dp))
+        }
         Text(text, style = MaterialTheme.typography.bodyLarge, color = Wtt.Muted, textAlign = TextAlign.Center, fontSize = 18.sp)
     }
 }

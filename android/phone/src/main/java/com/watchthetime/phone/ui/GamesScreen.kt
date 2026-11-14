@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.watchthetime.brand.ButtonKind
@@ -37,6 +39,7 @@ import com.watchthetime.brand.Wtt
 import com.watchthetime.brand.WttButton
 import com.watchthetime.brand.WttIconButton
 import com.watchthetime.brand.WttIcons
+import com.watchthetime.brand.WttShape
 import com.watchthetime.data.GameEntity
 import com.watchthetime.domain.state.GameStatus
 import com.watchthetime.phone.LiveGame
@@ -67,12 +70,11 @@ fun GamesScreen(onNew: () -> Unit, onOpen: (String) -> Unit, onTeams: () -> Unit
             when {
                 list == null -> Unit
                 list.isEmpty() -> Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                    EmptyNote("No games yet.\nStart one: pick a rules preset, two teams and go.")
+                    EmptyNote("No games yet.\nStart one: pick a rules preset, two teams and go.", icon = WttIcons.Basketball)
                 }
-                else -> LazyColumn(Modifier.fillMaxSize()) {
+                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
                     items(list, key = { it.gameId }) { g ->
                         GameRow(g, onClick = { onOpen(g.gameId) }, onLongClick = { confirmDelete = g })
-                        HRule()
                     }
                 }
             }
@@ -101,7 +103,8 @@ fun GamesScreen(onNew: () -> Unit, onOpen: (String) -> Unit, onTeams: () -> Unit
 private fun GameRow(g: GameEntity, onClick: () -> Unit, onLongClick: () -> Unit) {
     val live = g.status == GameStatus.LIVE.name || g.status == GameStatus.PERIOD_BREAK.name
     Row(
-        Modifier.fillMaxWidth().combinedClickable(onClick = onClick, onLongClick = onLongClick, onLongClickLabel = "Delete game")
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).clip(WttShape.Medium).background(Wtt.Panel)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick, onLongClickLabel = "Delete game")
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

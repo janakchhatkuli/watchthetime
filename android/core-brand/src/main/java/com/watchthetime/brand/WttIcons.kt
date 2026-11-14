@@ -1,209 +1,139 @@
 package com.watchthetime.brand
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.FormatListBulleted
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.automirrored.rounded.Redo
+import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AvTimer
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.DirectionsBus
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.FileDownload
+import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Gavel
+import androidx.compose.material.icons.rounded.GridOn
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PauseCircle
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.RestartAlt
+import androidx.compose.material.icons.rounded.RestoreFromTrash
+import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.ScreenRotation
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Sports
+import androidx.compose.material.icons.rounded.SportsBasketball
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.TableChart
+import androidx.compose.material.icons.rounded.Tag
+import androidx.compose.material.icons.rounded.Timelapse
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.PathBuilder
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-/**
- * Custom-drawn icon set (24×24 grid, 2px square-capped strokes, mitred joins). Drawn in black;
- * `Icon` tints them, so they pick up whatever colour the call site uses.
- */
+/** App icon set: Material Symbols (Rounded) plus a custom jersey. `Icon` tints them at the call site. */
 object WttIcons {
+    val Whistle: ImageVector get() = Icons.Rounded.Sports
+    val Basketball: ImageVector get() = Icons.Rounded.SportsBasketball
+    val Flag: ImageVector get() = Icons.Rounded.Flag
+    val Stopwatch: ImageVector get() = Icons.Rounded.Timer
+    val ShotClock: ImageVector get() = Icons.Rounded.AvTimer
+    val Clock: ImageVector get() = Icons.Rounded.Schedule
+    val Periods: ImageVector get() = Icons.Rounded.Timelapse
+    val Timeout: ImageVector get() = Icons.Rounded.PauseCircle
+    val Rules: ImageVector get() = Icons.Rounded.Gavel
 
-    private fun icon(name: String, block: Builder.() -> Unit): ImageVector {
-        val b = ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f)
-        Builder(b).block()
-        return b.build()
-    }
+    val Undo: ImageVector get() = Icons.AutoMirrored.Rounded.Undo
+    val Redo: ImageVector get() = Icons.AutoMirrored.Rounded.Redo
+    val Reset: ImageVector get() = Icons.Rounded.RestartAlt
+    val Play: ImageVector get() = Icons.Rounded.PlayArrow
+    val Pause: ImageVector get() = Icons.Rounded.Pause
+    val Stop: ImageVector get() = Icons.Rounded.Stop
+    val SkipNext: ImageVector get() = Icons.Rounded.SkipNext
+    val SkipPrevious: ImageVector get() = Icons.Rounded.SkipPrevious
 
-    class Builder(private val b: ImageVector.Builder) {
-        fun stroke(width: Float = 2f, d: PathBuilder.() -> Unit) {
-            b.path(
-                stroke = SolidColor(Color.Black), strokeLineWidth = width,
-                strokeLineCap = StrokeCap.Square, strokeLineJoin = StrokeJoin.Miter, pathBuilder = d,
-            )
-        }
+    val Plus: ImageVector get() = Icons.Rounded.Add
+    val Minus: ImageVector get() = Icons.Rounded.Remove
+    val Check: ImageVector get() = Icons.Rounded.Check
+    val Close: ImageVector get() = Icons.Rounded.Close
+    val Back: ImageVector get() = Icons.AutoMirrored.Rounded.ArrowBack
+    val Forward: ImageVector get() = Icons.AutoMirrored.Rounded.ArrowForward
+    val ChevronRight: ImageVector get() = Icons.AutoMirrored.Rounded.KeyboardArrowRight
+    val Menu: ImageVector get() = Icons.Rounded.Menu
+    val More: ImageVector get() = Icons.Rounded.MoreHoriz
+    val Exit: ImageVector get() = Icons.AutoMirrored.Rounded.Logout
 
-        fun fill(d: PathBuilder.() -> Unit) {
-            b.path(fill = SolidColor(Color.Black), pathBuilder = d)
-        }
-    }
+    val Pencil: ImageVector get() = Icons.Rounded.Edit
+    val Trash: ImageVector get() = Icons.Rounded.DeleteOutline
+    val Restore: ImageVector get() = Icons.Rounded.RestoreFromTrash
+    val Save: ImageVector get() = Icons.Rounded.Save
+    val Share: ImageVector get() = Icons.Rounded.Share
+    val Import: ImageVector get() = Icons.Rounded.FileDownload
+    val Csv: ImageVector get() = Icons.Rounded.GridOn
+    val Pdf: ImageVector get() = Icons.Rounded.PictureAsPdf
 
-    private fun PathBuilder.circle(cx: Float, cy: Float, r: Float) {
-        moveTo(cx - r, cy)
-        arcTo(r, r, 0f, true, true, cx + r, cy)
-        arcTo(r, r, 0f, true, true, cx - r, cy)
-        close()
-    }
+    val Log: ImageVector get() = Icons.AutoMirrored.Rounded.FormatListBulleted
+    val Table: ImageVector get() = Icons.Rounded.TableChart
+    val Sliders: ImageVector get() = Icons.Rounded.Tune
+    val Teams: ImageVector get() = Icons.Rounded.Groups
+    val PersonAdd: ImageVector get() = Icons.Rounded.PersonAdd
+    val Swap: ImageVector get() = Icons.Rounded.SwapHoriz
+    val Home: ImageVector get() = Icons.Rounded.Home
+    val Away: ImageVector get() = Icons.Rounded.DirectionsBus
+    val Palette: ImageVector get() = Icons.Rounded.Palette
 
-    /** Referee whistle: barrel with mouthpiece and pea hole. */
-    val Whistle: ImageVector = icon("Whistle") {
-        stroke {
-            moveTo(3f, 9f); lineTo(14f, 9f)
-            moveTo(14f, 9f); lineTo(14f, 6f); lineTo(21f, 6f); lineTo(21f, 10f); lineTo(16.5f, 10f)
-            moveTo(3f, 9f); lineTo(3f, 12f)
-        }
-        stroke { circle(9f, 14f, 5f) }
-        fill { circle(9f, 14f, 1.5f) }
-    }
+    val Speaker: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
+    val Vibration: ImageVector get() = Icons.Rounded.Vibration
+    val Bell: ImageVector get() = Icons.Rounded.NotificationsActive
+    val Eye: ImageVector get() = Icons.Rounded.Visibility
+    val Bulb: ImageVector get() = Icons.Rounded.Lightbulb
+    val Hash: ImageVector get() = Icons.Rounded.Tag
+    val Touch: ImageVector get() = Icons.Rounded.TouchApp
+    val Shield: ImageVector get() = Icons.Rounded.Shield
+    val LockOpen: ImageVector get() = Icons.Rounded.LockOpen
+    val Rotate: ImageVector get() = Icons.Rounded.ScreenRotation
 
-    /** Foul flag (technical / flagrant badge). */
-    val Flag: ImageVector = icon("Flag") {
-        stroke {
-            moveTo(5f, 21f); lineTo(5f, 3f)
-            moveTo(5f, 4f); lineTo(19f, 4f); lineTo(15f, 8.5f); lineTo(19f, 13f); lineTo(5f, 13f)
-        }
-    }
-
-    val Stopwatch: ImageVector = icon("Stopwatch") {
-        stroke { circle(12f, 14f, 7f) }
-        stroke {
-            moveTo(10f, 3f); lineTo(14f, 3f)
-            moveTo(12f, 3f); lineTo(12f, 7f)
-            moveTo(12f, 14f); lineTo(12f, 10f)
-            moveTo(18f, 7f); lineTo(19.5f, 5.5f)
-        }
-    }
-
-    val Undo: ImageVector = icon("Undo") {
-        stroke {
-            moveTo(4f, 10f); lineTo(15f, 10f)
-            arcTo(5f, 5f, 0f, false, true, 15f, 20f)
-            lineTo(9f, 20f)
-            moveTo(8f, 6f); lineTo(4f, 10f); lineTo(8f, 14f)
-        }
-    }
-
-    val Redo: ImageVector = icon("Redo") {
-        stroke {
-            moveTo(20f, 10f); lineTo(9f, 10f)
-            arcTo(5f, 5f, 0f, false, false, 9f, 20f)
-            lineTo(15f, 20f)
-            moveTo(16f, 6f); lineTo(20f, 10f); lineTo(16f, 14f)
-        }
-    }
-
-    val Pencil: ImageVector = icon("Pencil") {
-        stroke {
-            moveTo(4f, 20f); lineTo(4f, 16f); lineTo(15f, 5f); lineTo(19f, 9f); lineTo(8f, 20f); close()
-            moveTo(12.5f, 7.5f); lineTo(16.5f, 11.5f)
-        }
-    }
-
-    val Play: ImageVector = icon("Play") { fill { moveTo(7f, 4f); lineTo(20f, 12f); lineTo(7f, 20f); close() } }
-
-    val Pause: ImageVector = icon("Pause") {
-        fill { moveTo(6f, 4f); lineTo(10f, 4f); lineTo(10f, 20f); lineTo(6f, 20f); close() }
-        fill { moveTo(14f, 4f); lineTo(18f, 4f); lineTo(18f, 20f); lineTo(14f, 20f); close() }
-    }
-
-    val Plus: ImageVector = icon("Plus") { stroke { moveTo(12f, 5f); lineTo(12f, 19f); moveTo(5f, 12f); lineTo(19f, 12f) } }
-    val Minus: ImageVector = icon("Minus") { stroke { moveTo(5f, 12f); lineTo(19f, 12f) } }
-
-    val Back: ImageVector = icon("Back") {
-        stroke { moveTo(20f, 12f); lineTo(5f, 12f); moveTo(11f, 6f); lineTo(5f, 12f); lineTo(11f, 18f) }
-    }
-
-    val Close: ImageVector = icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }
-
-    val Check: ImageVector = icon("Check") { stroke { moveTo(5f, 12.5f); lineTo(10f, 17.5f); lineTo(19f, 7f) } }
-
-    val ChevronRight: ImageVector = icon("ChevronRight") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
-
-    val Menu: ImageVector = icon("Menu") {
-        stroke { moveTo(4f, 6f); lineTo(20f, 6f); moveTo(4f, 12f); lineTo(20f, 12f); moveTo(4f, 18f); lineTo(20f, 18f) }
-    }
-
-    /** Event log: ruled list with time ticks. */
-    val Log: ImageVector = icon("Log") {
-        stroke {
-            moveTo(4f, 5f); lineTo(6f, 5f); moveTo(9f, 5f); lineTo(20f, 5f)
-            moveTo(4f, 12f); lineTo(6f, 12f); moveTo(9f, 12f); lineTo(20f, 12f)
-            moveTo(4f, 19f); lineTo(6f, 19f); moveTo(9f, 19f); lineTo(20f, 19f)
-        }
-    }
-
-    /** Box score grid. */
-    val Table: ImageVector = icon("Table") {
-        stroke {
-            moveTo(3f, 4f); lineTo(21f, 4f); lineTo(21f, 20f); lineTo(3f, 20f); close()
-            moveTo(3f, 9f); lineTo(21f, 9f); moveTo(3f, 14.5f); lineTo(21f, 14.5f); moveTo(9f, 4f); lineTo(9f, 20f)
-        }
-    }
-
-    val Share: ImageVector = icon("Share") {
-        stroke {
-            moveTo(12f, 15f); lineTo(12f, 3f); moveTo(7f, 8f); lineTo(12f, 3f); lineTo(17f, 8f)
-            moveTo(5f, 12f); lineTo(5f, 21f); lineTo(19f, 21f); lineTo(19f, 12f)
-        }
-    }
-
-    /** Settings: three sliders (avoids the generic gear). */
-    val Sliders: ImageVector = icon("Sliders") {
-        stroke {
-            moveTo(4f, 6f); lineTo(20f, 6f); moveTo(4f, 12f); lineTo(20f, 12f); moveTo(4f, 18f); lineTo(20f, 18f)
-        }
-        fill { moveTo(7f, 3.5f); lineTo(11f, 3.5f); lineTo(11f, 8.5f); lineTo(7f, 8.5f); close() }
-        fill { moveTo(14f, 9.5f); lineTo(18f, 9.5f); lineTo(18f, 14.5f); lineTo(14f, 14.5f); close() }
-        fill { moveTo(5f, 15.5f); lineTo(9f, 15.5f); lineTo(9f, 20.5f); lineTo(5f, 20.5f); close() }
-    }
-
-    /** Team: jersey outline. */
-    val Jersey: ImageVector = icon("Jersey") {
-        stroke {
+    /** Team jersey outline (no Material equivalent). */
+    val Jersey: ImageVector = ImageVector.Builder("Jersey", 24.dp, 24.dp, 24f, 24f).apply {
+        path(
+            stroke = SolidColor(Color.Black), strokeLineWidth = 2f,
+            strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round,
+        ) {
             moveTo(8f, 3f); lineTo(5f, 4f); lineTo(5f, 9f); lineTo(7f, 10f); lineTo(7f, 21f); lineTo(17f, 21f)
             lineTo(17f, 10f); lineTo(19f, 9f); lineTo(19f, 4f); lineTo(16f, 3f)
             arcTo(4f, 4f, 0f, false, true, 8f, 3f)
         }
-    }
-
-    val Trash: ImageVector = icon("Trash") {
-        stroke {
-            moveTo(4f, 6f); lineTo(20f, 6f); moveTo(9f, 6f); lineTo(9f, 3f); lineTo(15f, 3f); lineTo(15f, 6f)
-            moveTo(6f, 6f); lineTo(7f, 21f); lineTo(17f, 21f); lineTo(18f, 6f)
-            moveTo(10f, 10f); lineTo(10f, 17f); moveTo(14f, 10f); lineTo(14f, 17f)
-        }
-    }
-
-    val Restore: ImageVector = icon("Restore") {
-        stroke {
-            moveTo(4f, 12f)
-            arcTo(8f, 8f, 0f, true, true, 6.5f, 17.8f)
-            moveTo(1f, 9f); lineTo(4f, 12f); lineTo(7f, 9f)
-            moveTo(12f, 8f); lineTo(12f, 12f); lineTo(15f, 14f)
-        }
-    }
-
-    /** Timeout: "T" inside a hand-stop square. */
-    val Timeout: ImageVector = icon("Timeout") {
-        stroke { moveTo(4f, 5f); lineTo(20f, 5f); moveTo(12f, 5f); lineTo(12f, 20f) }
-    }
-
-    val Import: ImageVector = icon("Import") {
-        stroke {
-            moveTo(12f, 3f); lineTo(12f, 15f); moveTo(7f, 10f); lineTo(12f, 15f); lineTo(17f, 10f)
-            moveTo(5f, 19f); lineTo(5f, 21f); lineTo(19f, 21f); lineTo(19f, 19f)
-        }
-    }
-
-    /** Shot clock reset: circular arrow. */
-    val Reset: ImageVector = icon("Reset") {
-        stroke {
-            moveTo(20f, 12f)
-            arcTo(8f, 8f, 0f, true, true, 17.6f, 6.3f)
-            moveTo(18f, 2f); lineTo(18f, 6.5f); lineTo(13.5f, 6.5f)
-        }
-    }
-
-    val Speaker: ImageVector = icon("Speaker") {
-        stroke {
-            moveTo(3f, 9f); lineTo(7f, 9f); lineTo(12f, 4f); lineTo(12f, 20f); lineTo(7f, 15f); lineTo(3f, 15f); close()
-            moveTo(16f, 9f); lineTo(16f, 15f); moveTo(19.5f, 6f); lineTo(19.5f, 18f)
-        }
-    }
+    }.build()
 }

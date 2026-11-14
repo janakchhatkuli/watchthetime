@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-/* Design system: arena-scoreboard colours, fonts, custom icons and base components. */
+/* Design system: soft scoreboard colours, fonts, icons and base components. */
 android {
     namespace = "com.watchthetime.brand"
     compileSdk = 36
@@ -25,6 +25,7 @@ dependencies {
     api(libs.compose.ui.graphics)
     api(libs.compose.foundation)
     api(libs.compose.material3)
+    api(libs.compose.material.icons.extended)
     api(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 }
